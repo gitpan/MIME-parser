@@ -99,7 +99,7 @@ To get certain commonly-used MIME information:
 
 # The package version, both in 1.23 style *and* usable by MakeMaker:
 $VERSION = undef;
-( $VERSION ) = '$Revision: 1.18 $ ' =~ /\$Revision:\s+([^\s]+)/;
+( $VERSION ) = '$Revision: 1.20 $ ' =~ /\$Revision:\s+([^\s]+)/;
 
 
 # Lifted from Mail::Internet...
@@ -300,7 +300,7 @@ sub read {
 		return error "unadorned 'From ' refused: <$_>";
 	    }
 	}
-	elsif (/^($FIELDNAME): /o) {         # first line of a field
+	elsif (/^($FIELDNAME):[ \t]*/o) {    # first line of a field
 	    $self->add(($lastparam = lc($1)), $');
 	}
 	elsif (/^\s/) {                      # continuation line of a field
@@ -1074,7 +1074,7 @@ Lee E. Brotzman, Advanced Data Solutions.
 
 =head1 VERSION
 
-$Revision: 1.18 $ $Date: 1996/07/06 05:31:25 $
+$Revision: 1.20 $ $Date: 1996/07/23 19:02:43 $
 
 =cut
 

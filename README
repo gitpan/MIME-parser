@@ -112,6 +112,11 @@ MAJOR PLANS FOR THE FUTURE
 
  
 CHANGE LOG
+	1.13 	MIME::Head now no longer requires space after ":", although
+		either a space or a tab after the ":" will be swallowed
+		if there.  Thanks to Igor Starovoitov for pointing out this 
+		shortcoming.
+
 	1.12	Fixed bugs in parser where CRLF-terminated lines were 
 		blowing out the handling of preambles/epilogues.
 		Thanks to Russell Sutherland for reporting this bug.
@@ -147,12 +152,12 @@ CHANGE LOG
 
 	1.10	A typo was causing the epilogue of an inner multipart
 		message to be swallowed to the end of the OUTER multipart
-		message; this has now been fixed.  Thanks to Starovoitov 
-		Igor for reporting this bug.
+		message; this has now been fixed.  Thanks to Igor Starovoitov 
+		for reporting this bug.
 
 		A bad regexp for parameter names was causing 
 		some parameters to be parsed incorrectly; this has also
-		been fixed.  Thanks again to Starovoitov Igor for reporting 
+		been fixed.  Thanks again to Igor Starovoitov for reporting 
 		this bug.
 	
 		It is now possible to get full control of the filenaming
