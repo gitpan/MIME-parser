@@ -11,9 +11,11 @@
 	<LI><A HREF="#name">NAME</A>
 	<LI><A HREF="#description">DESCRIPTION</A>
 	<LI><A HREF="#synopsis">SYNOPSIS</A>
+	<LI><A HREF="#warnings">WARNINGS</A>
 	<LI><A HREF="#public_interface">PUBLIC INTERFACE</A>
 	<LI><A HREF="#under_the_hood">UNDER THE HOOD</A>
 	<LI><A HREF="#questionable_practices">QUESTIONABLE PRACTICES</A>
+	<LI><A HREF="#call_for_testers">CALL FOR TESTERS</A>
 	<LI><A HREF="#see_also">SEE ALSO</A>
 	<LI><A HREF="#author">AUTHOR</A>
 	<LI><A HREF="#version">VERSION</A>
@@ -73,6 +75,31 @@ MIME::Entity objects.
 
 <P>
 <HR>
+<H1><A NAME="warnings">WARNINGS</A></H1>
+The organization of the <CODE>output_path()</CODE> code changed in version 1.11 of this module. If you are upgrading from a
+previous version, and you use inheritance to override the <CODE>output_path()</CODE> method, please take a moment to familiarize yourself with the new code.
+Everything <EM>should</EM>
+
+still work, but ya never know...
+
+
+<P>
+
+New, untested <CODE>binmode()</CODE> calls were added in module version
+1.11... if <CODE>binmode()</CODE> is <EM>not</EM>
+ a NOOP on your system, please pay careful attention to your output, and
+report <EM>any</EM>
+ anomalies.  
+<EM>It is possible that "make test" will fail on such systems,</EM>
+ 
+since some of the tests involve checking the sizes of the output files.
+That doesn't necessarily indicate a problem.
+
+
+<P>
+
+<P>
+<HR>
 <H1><A NAME="public_interface">PUBLIC INTERFACE</A></H1>
 <DL>
 <DT><STRONG><A NAME="item_new">new
@@ -93,7 +120,7 @@ doing the actual parsing:
 
 <P>
 
-<DT><STRONG><A NAME="item_output_dir_optvalue">output_dir OPTVALUE
+<DT><STRONG><A NAME="item_output_dir_directory">output_dir [DIRECTORY]
 
 </A></STRONG><DD>
 Get/set the output directory for the parsing operation. This is the
@@ -103,8 +130,8 @@ is <CODE>"."</CODE>.
 
 <P>
 
-If <CODE>OPTVALUE</CODE>  <EM>is not</EM>
- given, the current output directory is returned. If <CODE>OPTVALUE</CODE>  <EM>is</EM>
+If <CODE>DIRECTORY</CODE>  <EM>is not</EM>
+ given, the current output directory is returned. If <CODE>DIRECTORY</CODE>  <EM>is</EM>
  given, the output directory is set to the new value, and the previous value
 is returned.
 
@@ -114,22 +141,41 @@ is returned.
 <DT><STRONG><A NAME="item_output_path_head">output_path HEAD
 
 </A></STRONG><DD>
+<EM>Utility method.</EM>
+
 Given a MIME head for a file to be extracted, come up with a good output
-pathname for the extracted file.  
+pathname for the extracted file.
 
 
 <P>
 
-Normally, the ``directory'' portion will be the <CODE>output_dir()</CODE>, and the ``filename'' portion will be the recommended filename extracted
+<UL>
+<LI><STRONG></STRONG>
+You'll probably never need to invoke this method directly. As of version
+1.11, this method is provided so that your 
+<CODE>output_path_hook()</CODE> function (or your MIME::Parser subclass) can have clean access to the
+original algorithm.  
+<STRONG>This method no longer attempts to run the user hook function.</STRONG>
+
+
+
+
+
+<P>
+
+</UL>
+Normally, the ``directory'' portion of the returned path will be the 
+<CODE>output_dir()</CODE>, and the ``filename'' portion will be the recommended filename extracted
 from the MIME header (or some simple temporary file name, starting with the
 <CODE>output_prefix(),</CODE> if the header does not specify a filename).
 
 
 <P>
 
-If there is a recommended filename, but it is judged to be evil (if it is
-empty, or if it contains ``/''s or ``..''s or non-ASCII characters), then a
-warning is issued and the temporary file name is used in its place.  <EM>This may be overly restrictive, so...</EM>
+If there <EM>is</EM>
+ a recommended filename, but it is judged to be evil (if it is empty, or if
+it contains ``/''s or ``..''s or non-ASCII characters), then a warning is
+issued and the temporary file name is used in its place.  <EM>This may be overly restrictive, so...</EM>
 
 
 
@@ -137,16 +183,43 @@ warning is issued and the temporary file name is used in its place.  <EM>This ma
 
 <P>
 
-<STRONG>NOTE:</STRONG>
- If you don't like the behavior of this function, you can change it by
-installing your own routine. See <CODE>output_path_hook()</CODE>
-for details.
+<STRONG>NOTE: If you don't like the behavior of this function,</STRONG>
+ you can override it with your own routine. See <CODE>output_path_hook()</CODE>
+for details. If you want to be OOish about it, you could instead define
+your own subclass of MIME::Parser and override it there:
 
+
+<P>
+
+<PRE>
+     package MIME::MyParser;
+     
+     require 5.002;                # for SUPER
+     use strict;
+     use package MIME::Parser;
+     
+     @MIME::MyParser::ISA = ('MIME::Parser');
+     
+     sub output_path {
+         my ($self, $head) = @_;
+         
+         # Your code here; FOR EXAMPLE...
+         if (i_have_a_preference) {
+	     return my_custom_path;
+         }
+	 else {                      # return the default path:
+             return $self-&gt;SUPER::output_path($head);
+         }
+     }
+     1;
+</PRE>
 
 <P>
 
 <EM>Thanks to Laurent Amon for pointing out problems with the original
-implementation, and for making some good suggestions.</EM>
+implementation, and for making some good suggestions.  Thanks also to
+Achim Bohnet for pointing out that there should be a hookless, OO way of 
+overriding the output_path.</EM>
 
 
 
@@ -197,24 +270,25 @@ And install it immediately before parsing the input stream, like this:
 
 <P>
 
-<DT><STRONG><A NAME="item_output_prefix_optvalue">output_prefix OPTVALUE
-
-</A></STRONG><DD>
-Get/set the output prefix for the parsing operation.
+This method is intended for people who are squeamish about creating
+subclasses. See the <CODE>output_path()</CODE> documentation for a cleaner, OOish way to do this.
 
 
 <P>
 
-Get/set the output directory for the parsing operation. This is a short
-string that all filenames for extracted and decoded body parts will begin
-with. The default is <EM>"msg"</EM>
+<DT><STRONG><A NAME="item_output_prefix_prefix">output_prefix [PREFIX]
+
+</A></STRONG><DD>
+Get/set the output prefix for the parsing operation. This is a short string
+that all filenames for extracted and decoded body parts will begin with.
+The default is <EM>"msg"</EM>
 .
 
 
 <P>
 
-If <CODE>OPTVALUE</CODE>  <EM>is not</EM>
- given, the current output prefix is returned. If <CODE>OPTVALUE</CODE>  <EM>is</EM>
+If <CODE>PREFIX</CODE>  <EM>is not</EM>
+ given, the current output prefix is returned. If <CODE>PREFIX</CODE>  <EM>is</EM>
  given, the output directory is set to the new value, and the previous value
 is returned.
 
@@ -481,6 +555,18 @@ each line... <EM>but this is as it should be</EM>
 </DL>
 <P>
 <HR>
+<H1><A NAME="call_for_testers">CALL FOR TESTERS</A></H1>
+If anyone wants to test out this package's handling of both binary and
+textual email on a system where <CODE>binmode()</CODE> is not a NOOP, I
+would be most grateful. If stuff breaks, send me the pieces (including the
+original email that broke it, and at the very least a description of how
+the output was screwed up).
+
+
+<P>
+
+<P>
+<HR>
 <H1><A NAME="see_also">SEE ALSO</A></H1>
 MIME::Decoder, MIME::Entity, MIME::Head, MIME::Parser.
 
@@ -505,7 +591,7 @@ and/or modify it under the same terms as Perl itself.
 <P>
 <HR>
 <H1><A NAME="version">VERSION</A></H1>
-$Revision: 1.10 $ $Date: 1996/06/24 19:02:31 $
+$Revision: 1.14 $ $Date: 1996/07/06 05:28:29 $
 
 
 <P>

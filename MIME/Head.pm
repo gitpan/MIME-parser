@@ -99,7 +99,7 @@ To get certain commonly-used MIME information:
 
 # The package version, both in 1.23 style *and* usable by MakeMaker:
 $VERSION = undef;
-( $VERSION ) = '$Revision: 1.16 $ ' =~ /\$Revision:\s+([^\s]+)/;
+( $VERSION ) = '$Revision: 1.18 $ ' =~ /\$Revision:\s+([^\s]+)/;
 
 
 # Lifted from Mail::Internet...
@@ -321,7 +321,7 @@ sub read {
 
 =head2 Getting/setting fields
 
-B<NOTE:> this interface is not as extensive as that of MIME::Internet;
+B<NOTE:> this interface is not as extensive as that of Mail::Internet;
 however, I have provided a set of methods that I can guarantee are 
 supportable across any changes to the internal implementation of this
 class.
@@ -747,27 +747,33 @@ sub mime_encoding {
 
 =item mime_type
 
-Try real hard to determine the content type, which is returned 
-as C<"$type/$subtype"> in all-lowercase.
+Try real hard to determine the content type (e.g., C<"text/plain">,
+C<"image/gif">, C<"x-weird-type">, which is returned 
+in all-lowercase.  
+
+A happy thing: the following code will work just as you would want,
+even if there's no subtype (as in C<"x-weird-type">)... in such a case,
+the $subtype would simply be the empty string:
 
     ($type, $subtype) = split('/', $head->mime_type);
 
-If I<both> the type I<and> the subtype are missing, the content-type defaults 
-to C<"text/plain">, as per RFC-1521:
+If the content-type information is missing, it defaults to C<"text/plain">, 
+as per RFC-1521:
 
     Default RFC-822 messages are typed by this protocol as plain text in
     the US-ASCII character set, which can be explicitly specified as
     "Content-type: text/plain; charset=us-ascii".  If no Content-Type is
     specified, this default is assumed.  
 
-If I<just> the subtype is missing (really a syntax error, but we'll 
-tolerate it, since some mailers actually do this), then the subtype
-defaults to C<"x-subtype-unknown">.
-This may change in the future, since I don't know if this was a really 
-horrible idea: unfortunately, there is no standard default subtype,
-and even when a good default can be decided upon, I felt queasy about 
-returning the erroneous C<"text"> as either the legal C<"text/plain">
-or the still-illegal C<"text/">.
+If I<just> the subtype is missing (a syntax error unless the type
+begins with C<"x-">, but we'll tolerate it, since some brain-dead mailers 
+actually do this), then it simply is not reported; e.g., 
+C<"Content-type: TEXT"> is returned simply as C<"text">.
+
+B<WARNING:> prior to version 1.17, a missing subtype was reported
+as "x-subtype-unknown".  I said at the time that this might be a really
+horrible idea, and that I might change it in the future.  Well, it was, 
+so I did.
 
 If the content type is present but can't be parsed at all (yow!), 
 the empty string is returned.
@@ -784,8 +790,7 @@ sub mime_type {
     
     # Extract info:
     ($value =~ m|([A-Za-z0-9-_]+)(/([A-Za-z0-9-_]+))?|) or return '';
-    ($type, $subtype) = (lc($1), lc($3 || 'x-subtype-unknown'));
-    "$type/$subtype";
+    lc($&);
 }
 
 #------------------------------------------------------------
@@ -1069,7 +1074,7 @@ Lee E. Brotzman, Advanced Data Solutions.
 
 =head1 VERSION
 
-$Revision: 1.16 $ $Date: 1996/06/19 04:04:35 $
+$Revision: 1.18 $ $Date: 1996/07/06 05:31:25 $
 
 =cut
 

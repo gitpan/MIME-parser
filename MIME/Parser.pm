@@ -34,6 +34,22 @@ obtain MIME::Entity objects.
     $entity->dump_skeleton;          # for debugging 
 
 
+=head1 WARNINGS
+
+The organization of the C<output_path()> code changed in version 1.11
+of this module.  If you are upgrading from a previous version, and
+you use inheritance to override the C<output_path()> method, please
+take a moment to familiarize yourself with the new code.  Everything I<should>
+still work, but ya never know...
+
+New, untested binmode() calls were added in module version 1.11... 
+if binmode() is I<not> a NOOP on your system, please pay careful attention 
+to your output, and report I<any> anomalies.  
+I<It is possible that "make test" will fail on such systems,> 
+since some of the tests involve checking the sizes of the output files.
+That doesn't necessarily indicate a problem.
+
+
 =head1 PUBLIC INTERFACE
 
 =over 4
@@ -47,9 +63,10 @@ require 5.001;         # sorry, but I need the new FileHandle:: methods!
 use MIME::Head;
 use MIME::Entity;
 use MIME::Decoder;
-use POSIX;
-use FileHandle;
-use Carp;
+BEGIN {
+   require POSIX if ($] < 5.002);  # I dunno; supposedly, 5.001m needs this...
+}
+use FileHandle ();
 				
 
 
@@ -61,7 +78,7 @@ use Carp;
 
 # The package version, both in 1.23 style *and* usable by MakeMaker:
 $VERSION = undef;
-( $VERSION ) = '$Revision: 1.10 $ ' =~ /\$Revision:\s+([^\s]+)/;
+( $VERSION ) = '$Revision: 1.14 $ ' =~ /\$Revision:\s+([^\s]+)/;
 
 # How to catenate:
 $CAT = '/bin/cat';
@@ -73,17 +90,35 @@ $DEBUG = 0;
 $CRLF = "\015\012";
 
 
+#------------------------------------------------------------
+#
+# UTILITIES
+#
+#------------------------------------------------------------
 
 #------------------------------------------------------------
 # error -- private utility: register unhappiness
 #------------------------------------------------------------
 sub error { 
-    warn "(line $.) ", @_;
+    warn "(line $.) @_";
     (wantarray ? () : undef);
 }
 
+#------------------------------------------------------------
+# textlike -- private utility: does HEAD indicate a textlike document?
+#------------------------------------------------------------
+sub textlike {
+    my $head = shift;
+    my ($type, $subtype) = split('/', $head->mime_type);
+    return (($type eq 'text') || ($type eq 'message'));
+}
 
 
+#------------------------------------------------------------
+#
+# PUBLIC INTERFACE
+#
+#------------------------------------------------------------
 
 #------------------------------------------------------------
 # new
@@ -114,14 +149,14 @@ sub new {
 # output_dir
 #------------------------------------------------------------
 
-=item output_dir OPTVALUE
+=item output_dir [DIRECTORY]
 
 Get/set the output directory for the parsing operation.
 This is the directory where the extracted and decoded body parts will go.
 The default is C<".">.
 
-If C<OPTVALUE> I<is not> given, the current output directory is returned.
-If C<OPTVALUE> I<is> given, the output directory is set to the new value,
+If C<DIRECTORY> I<is not> given, the current output directory is returned.
+If C<DIRECTORY> I<is> given, the output directory is set to the new value,
 and the previous value is returned.
 
 =cut
@@ -151,40 +186,92 @@ sub evil_name {
 }
 
 #------------------------------------------------------------
+# output_path_or_hook HEAD
+#------------------------------------------------------------
+# PRIVATE.  If an output_path_hook() function is installed by the user, 
+# then that function is called.  Otherwise, the output_path()
+# method (which does all the real work) is called.
+
+sub output_path_or_hook {
+    my $self = shift;
+
+    # If there's an output path hook, just call it:
+    if ($self->{OutputPathHook}) {
+	return &{$self->{OutputPathHook}}($self, @_);
+    }
+    else {
+	$self->output_path(@_);
+    }
+}
+
+#------------------------------------------------------------
 # output_path
 #------------------------------------------------------------
 
 =item output_path HEAD
 
+I<Utility method.>
 Given a MIME head for a file to be extracted, come up with a good
-output pathname for the extracted file.  
+output pathname for the extracted file.
 
-Normally, the "directory" portion will be the C<output_dir()>,
-and the "filename" portion will be the recommended filename extracted from
-the MIME header (or some simple temporary file name, starting with the 
-output_prefix(), if the header does not specify a filename).
+=over
 
-If there is a recommended filename, but it is judged to be evil 
+=item *
+
+You'll probably never need to invoke this method directly.
+As of version 1.11, this method is provided so that your 
+C<output_path_hook()> function (or your MIME::Parser subclass)
+can have clean access to the original algorithm.  
+B<This method no longer attempts to run the user hook function.>
+
+=back
+
+Normally, the "directory" portion of the returned path will be the 
+C<output_dir()>, and the "filename" portion will be the recommended 
+filename extracted from the MIME header (or some simple temporary file 
+name, starting with the output_prefix(), if the header does not specify 
+a filename).
+
+If there I<is> a recommended filename, but it is judged to be evil 
 (if it is empty, or if it contains "/"s or ".."s or non-ASCII
 characters), then a warning is issued and the temporary file name
 is used in its place.  I<This may be overly restrictive, so...>
 
-B<NOTE:> If you don't like the behavior of this function, you 
-can change it by installing your own routine.  See C<output_path_hook()>
-for details.
+B<NOTE: If you don't like the behavior of this function,> you 
+can override it with your own routine.  See C<output_path_hook()>
+for details.   If you want to be OOish about it, you could instead
+define your own subclass of MIME::Parser and override it there:
+
+     package MIME::MyParser;
+     
+     require 5.002;                # for SUPER
+     use strict;
+     use package MIME::Parser;
+     
+     @MIME::MyParser::ISA = ('MIME::Parser');
+     
+     sub output_path {
+         my ($self, $head) = @_;
+         
+         # Your code here; FOR EXAMPLE...
+         if (i_have_a_preference) {
+	     return my_custom_path;
+         }
+	 else {                      # return the default path:
+             return $self->SUPER::output_path($head);
+         }
+     }
+     1;
 
 I<Thanks to Laurent Amon for pointing out problems with the original
-implementation, and for making some good suggestions.>
+implementation, and for making some good suggestions.  Thanks also to
+Achim Bohnet for pointing out that there should be a hookless, OO way of 
+overriding the output_path.>
 
 =cut
 
 sub output_path {
     my ($self, $head) = @_;
-
-    # If there's an output path hook, just call it:
-    if ($self->{OutputPathHook}) {
-	return &{$self->{OutputPathHook}}($self, $head);
-    }
 
     # Get the output filename:
     my $outname = $head->recommended_filename;
@@ -210,7 +297,7 @@ sub output_path {
 =item output_path_hook SUBREF
 
 Install a different function to generate the output filename
-    for extracted message data.  Declare it like this:
+for extracted message data.  Declare it like this:
 
     sub my_output_path_hook {
         my $parser = shift;   # this MIME::Parser
@@ -231,6 +318,10 @@ And install it immediately before parsing the input stream, like this:
     # NOW we can parse an input stream:
     $entity = $parser->read(\*STDIN);
 
+This method is intended for people who are squeamish about creating 
+subclasses.  See the C<output_path()> documentation for a cleaner, 
+OOish way to do this.
+
 =cut
 
 sub output_path_hook {
@@ -243,16 +334,14 @@ sub output_path_hook {
 # output_prefix 
 #------------------------------------------------------------
 
-=item output_prefix OPTVALUE
+=item output_prefix [PREFIX]
 
 Get/set the output prefix for the parsing operation.
-
-Get/set the output directory for the parsing operation.
 This is a short string that all filenames for extracted and decoded 
 body parts will begin with.  The default is F<"msg">.
 
-If C<OPTVALUE> I<is not> given, the current output prefix is returned.
-If C<OPTVALUE> I<is> given, the output directory is set to the new value,
+If C<PREFIX> I<is not> given, the current output prefix is returned.
+If C<PREFIX> I<is> given, the output directory is set to the new value,
 and the previous value is returned.
 
 =cut
@@ -283,7 +372,8 @@ sub parse_preamble {
     # Parse preamble:
     $DEBUG and print STDERR "skip until\n\tdelim <$delim>\n\tclose <$close>\n";
     while (<$in>) {
-	chomp;
+	s/\r?\n$//o;        # chomps both \r and \r\n
+	
 	$DEBUG and print STDERR "preamble: <$_>\n";
 	($_ eq $delim) and return 'DELIM';
 	($_ eq $close) and return error "multipart message has no parts";
@@ -312,7 +402,8 @@ sub parse_epilogue {
     # Parse epilogue:
     $DEBUG and print STDERR "skip until\n\tdelim <$delim>\n\tclose <$close>\n";
     while (<$in>) {
-	chomp;
+	s/\r?\n$//o;        # chomps both \r and \r\n
+
 	$DEBUG and print STDERR "epilogue: <$_>\n";
 	if (defined($outer_bound)) {    # if there's a boundary, look for it:
 	    ($_ eq $delim) and return 'DELIM';
@@ -325,7 +416,6 @@ sub parse_epilogue {
 #------------------------------------------------------------
 # parse_to_bound -- parse up to (and including) the boundary, and dump output
 #------------------------------------------------------------
-#
 # NOTES
 #    Follows the RFC-1521 specification, that the CRLF
 #    immediately preceding the boundary is part of the boundary,
@@ -438,7 +528,7 @@ sub parse_part {
 	}
 
 	# Generate a good name for the body file:
-	my $bodyfile = $self->output_path($head);
+	my $bodyfile = $self->output_path_or_hook($head);
 
 	# Obtain a filehandle for reading the encoded information:
 	#    We have two different approaches, based on whether or not we 
@@ -448,6 +538,7 @@ sub parse_part {
 
 	    # Open a temp file to dump the encoded info to, and do so:
 	    $encoded = FileHandle->new_tmpfile;
+	    binmode($encoded);                # extract the part AS IS
 	    $state = $self->parse_to_bound($outer_bound, $in, $encoded)
 		or return ();
 	    
@@ -459,11 +550,15 @@ sub parse_part {
 	    
 	    # The rest of the MIME stream becomes our temp file!
 	    $encoded = $in;
+	    #                       # do NOT binmode()... might be a user FH!
 	    $state = 'EOF';         # it will be, if we return okay
 	}
 
-	# Decode and save the body (using the decoder):
+	# Open the final-destination output file:
 	open OUT, ">$bodyfile" or return error "$bodyfile not opened: $!";
+	binmode OUT unless textlike($head);    # no binmode if text output!
+
+	# Decode and save the body (using the decoder):
 	my $decoded_ok = $decoder->decode($encoded, \*OUT);
 	close OUT;
 	$decoded_ok or return error "decoding failed";
@@ -699,6 +794,14 @@ each line... I<but this is as it should be>.
 
 =back
 
+=head1 CALL FOR TESTERS
+
+If anyone wants to test out this package's handling of both binary
+and textual email on a system where binmode() is not a NOOP, I would be 
+most grateful.  If stuff breaks, send me the pieces (including the 
+original email that broke it, and at the very least a description
+of how the output was screwed up).
+
 =head1 SEE ALSO
 
 MIME::Decoder,
@@ -715,7 +818,7 @@ it and/or modify it under the same terms as Perl itself.
 
 =head1 VERSION
 
-$Revision: 1.10 $ $Date: 1996/06/24 19:02:31 $
+$Revision: 1.14 $ $Date: 1996/07/06 05:28:29 $
 
 =cut
 

@@ -315,7 +315,7 @@ will be returned; on failure, the undefined value.
 <HR>
 <H2><A NAME="gettingsetting_fields">Getting/setting fields</A></H2>
 <STRONG>NOTE:</STRONG>
- this interface is not as extensive as that of MIME::Internet; however, I
+ this interface is not as extensive as that of Mail::Internet; however, I
 have provided a set of methods that I can guarantee are supportable across
 any changes to the internal implementation of this class.
 
@@ -689,7 +689,15 @@ If no encoding could be found, the empty string is returned.
 <DT><STRONG><A NAME="item_mime_type">mime_type
 
 </A></STRONG><DD>
-Try real hard to determine the content type, which is returned as <CODE>"$type/$subtype"</CODE> in all-lowercase.
+Try real hard to determine the content type (e.g., <CODE>"text/plain"</CODE>,
+<CODE>"image/gif"</CODE>, <CODE>"x-weird-type"</CODE>, which is returned in all-lowercase.  
+
+
+<P>
+
+A happy thing: the following code will work just as you would want, even if
+there's no subtype (as in <CODE>"x-weird-type"</CODE>)... in such a case, the <CODE>$subtype</CODE> would simply be the empty
+string:
 
 
 <P>
@@ -700,9 +708,7 @@ Try real hard to determine the content type, which is returned as <CODE>"$type/$
 
 <P>
 
-If <EM>both</EM>
- the type <EM>and</EM>
- the subtype are missing, the content-type defaults to <CODE>"text/plain"</CODE>, as per RFC-1521:
+If the content-type information is missing, it defaults to <CODE>"text/plain"</CODE>, as per RFC-1521:
 
 
 <P>
@@ -717,12 +723,18 @@ If <EM>both</EM>
 <P>
 
 If <EM>just</EM>
- the subtype is missing (really a syntax error, but we'll tolerate it, since
-some mailers actually do this), then the subtype defaults to <CODE>"x-subtype-unknown"</CODE>. This may change in the future, since I don't know if this was a really
-horrible idea: unfortunately, there is no standard default subtype, and
-even when a good default can be decided upon, I felt queasy about returning
-the erroneous <CODE>"text"</CODE> as either the legal <CODE>"text/plain"</CODE>
-or the still-illegal <CODE>"text/"</CODE>.
+ the subtype is missing (a syntax error unless the type begins with <CODE>"x-"</CODE>, but we'll tolerate it, since some brain-dead mailers actually do this),
+then it simply is not reported; e.g., 
+<CODE>"Content-type: TEXT"</CODE> is returned simply as <CODE>"text"</CODE>.
+
+
+<P>
+
+<STRONG>WARNING:</STRONG>
+ prior to version 1.17, a missing subtype was reported as
+``x-subtype-unknown''. I said at the time that this might be a really
+horrible idea, and that I might change it in the future. Well, it was, so I
+did.
 
 
 <P>
@@ -1095,7 +1107,7 @@ Advanced Data Solutions.
 <P>
 <HR>
 <H1><A NAME="version">VERSION</A></H1>
-$Revision: 1.16 $ $Date: 1996/06/19 04:04:35 $
+$Revision: 1.18 $ $Date: 1996/07/06 05:31:25 $
 
 
 <P>

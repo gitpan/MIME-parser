@@ -88,7 +88,7 @@ require MIME::Head;
 
 # The package version, both in 1.23 style *and* usable by MakeMaker:
 $VERSION = undef;
-( $VERSION ) = '$Revision: 1.10 $ ' =~ /\$Revision:\s+([^\s]+)/;
+( $VERSION ) = '$Revision: 1.12 $ ' =~ /\$Revision:\s+([^\s]+)/;
 
 #------------------------------------------------------------
 # error -- private: register unhappiness
@@ -275,8 +275,37 @@ Note that this says nothing about whether or not parts were extracted.
 sub is_multipart {
     my $self = shift;
     $self->head or return undef;        # no head, so no MIME type!
-    my ($type, $subtype) = split('/', $self->mime_type);
+    my ($type, $subtype) = split('/', $self->head->mime_type);
     (($type eq 'multipart') ? 1 : 0);
+}
+
+#------------------------------------------------------------
+# mime_type
+#------------------------------------------------------------
+
+=item mime_type
+
+A purely-for-convenience method.  This simply relays the
+request to the associated MIME::Head object.  The following
+are identical:
+
+    $x = $entity->mime_type;
+    
+    $x = $entity->head->mime_type;
+
+If there is no head, returns undef in a scalar context and
+the empty array in a list context.
+
+Note that, while parsed entities still have MIME types, they 
+do not have MIME encodings, or MIME versions, or fields, etc., etc... 
+for those attributes, you still have to go to the I<head> explicitly.
+
+=cut
+
+sub mime_type {
+    my $self = shift;
+    $self->head or return (wantarray ? () : undef);
+    $self->head->mime_type;
 }
 
 #------------------------------------------------------------
@@ -344,7 +373,8 @@ to the currently-selected one if none given.
 sub dump_skeleton {
     my ($self, $fh, $indent) = @_;
     $fh or $fh = select;
-    my $ind = '    ' x ($indent || 0);
+    defined($indent) or $indent = 0;
+    my $ind = '    ' x $indent;
     my $part;
 
     print $fh $ind, "Content-type: ", 
@@ -530,7 +560,7 @@ it and/or modify it under the same terms as Perl itself.
 
 =head1 VERSION
 
-$Revision: 1.10 $ $Date: 1996/06/24 19:02:31 $
+$Revision: 1.12 $ $Date: 1996/06/27 01:26:26 $
 
 =cut
 

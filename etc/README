@@ -1,0 +1,6 @@
+
+The MIME:: files below this directory are provided ONLY so that the 
+MIME-parser package can get off the ground and test itself.
+You should go out to your favorite CPAN site and get up-to-date
+versions of these MIME:: modules if you don't already have them.
+

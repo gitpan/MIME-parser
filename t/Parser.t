@@ -39,7 +39,7 @@ unlink <$DIR/[a-z]*>;
 #------------------------------------------------------------
 # BEGIN
 #------------------------------------------------------------
-print "1..7\n";
+print "1..8\n";
 
 #------------------------------------------------------------
 note "1: read a nested multipart MIME message";
@@ -62,6 +62,15 @@ okay_if(-s "$DIR/message-2.dat");
 okay_if(-s "$DIR/message-3.dat");
 okay_if(-s "$DIR/message-4.dat");
 
+#------------------------------------------------------------
+note "8: same message, but CRLF-terminated and no output path hook";
+#------------------------------------------------------------
+my $parser = new MIME::Parser;
+$parser->output_dir($DIR);
+open IN, "./testin/multi-nested2.msg" or die "open: $!";
+my $entity = $parser->read(\*IN);
+$entity or die "parse failed";
+okay_if('here');
 # Done!
 exit(0);
 1;

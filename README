@@ -92,8 +92,46 @@ INSTALLATION
         make clean      # delete local temp files (Makefile gets renamed)
         make realclean  # delete derived files (including ./blib)
 
+
+MAJOR PLANS FOR THE FUTURE
+
+	* Tighter coupling with Mail::Internet and friends.
+
+	* Add option to parse message/rfc822 as a pseduo multipart document.
+
+	* Dress up mimedump and mimeexplode utilities to take cmd line options
+	  for directory, environment vars (MIMEDUMP_OUTPUT, etc.).
+
+	* Allow you to specify a cutoff() method that will determine whether
+	  a decoded message is stored on disk or in a scalar.  Default will
+	  probably keep messages <10-20K in core.  In such a case, the
+	  body() method will return undef; we'll need a new way of accessing
+	  the data transparently.  Too bad setvbuf() isn't guaranteed...
+	  we could just "open" a filehandle on the scalar... hmmm... maybe
+	  I'll provide an open_body() for those lucky few that have it...  :-)
+
  
 CHANGE LOG
+	1.12	Fixed bugs in parser where CRLF-terminated lines were 
+		blowing out the handling of preambles/epilogues.
+		Thanks to Russell Sutherland for reporting this bug.
+
+		Fixed idiotic is_multipart() bug.  Thanks to Andreas Koenig 
+		for noticing it.
+
+		Added untested binmode() calls to parser for DOS, etc.
+		systems.  No idea if this will work...
+
+		Reorganized the output_path() methods to allow easy use
+		of inheritance, as per Achim Bohnet's suggestion.
+
+		Changed MIME::Head to report mime_type more accurately.
+
+		POSIX module no longer loaded by Parser if perl >= 5.002.
+		Hey, 5.001'ers: let me know if this breaks stuff, okay?
+
+		Added unsupported ./examples directory.
+
 	1.11	Converted over to using Makefile.PL.  Thanks to
 		Andreas Koenig for the much-needed kick in the pants...
 

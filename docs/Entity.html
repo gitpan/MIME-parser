@@ -260,6 +260,37 @@ Note that this says nothing about whether or not parts were extracted.
 
 <P>
 
+<DT><STRONG><A NAME="item_mime_type">mime_type
+
+</A></STRONG><DD>
+A purely-for-convenience method. This simply relays the request to the
+associated MIME::Head object. The following are identical:
+
+
+<P>
+
+<PRE>
+    $x = $entity-&gt;mime_type;
+    
+    $x = $entity-&gt;head-&gt;mime_type;
+</PRE>
+
+<P>
+
+If there is no head, returns undef in a scalar context and the empty array
+in a list context.
+
+
+<P>
+
+Note that, while parsed entities still have MIME types, they do not have
+MIME encodings, or MIME versions, or fields, etc., etc... for those
+attributes, you still have to go to the <EM>head</EM>
+ explicitly.
+
+
+<P>
+
 <DT><STRONG><A NAME="item_parts">parts
 
 </A></STRONG><DD>
@@ -523,7 +554,7 @@ and/or modify it under the same terms as Perl itself.
 <P>
 <HR>
 <H1><A NAME="version">VERSION</A></H1>
-$Revision: 1.10 $ $Date: 1996/06/24 19:02:31 $
+$Revision: 1.12 $ $Date: 1996/06/27 01:26:26 $
 
 
 <P>
