@@ -88,6 +88,25 @@ INSTALLATION
           make install
  
 CHANGE LOG
+	1.10	A typo was causing the epilogue of an inner multipart
+		message to be swallowed to the end of the OUTER multipart
+		message; this has now been fixed.  Thanks to Starovoitov 
+		Igor for reporting this bug.
+
+		A bad regexp for parameter names was causing 
+		some parameters to be parsed incorrectly; this has also
+		been fixed.  Thanks again to Starovoitov Igor for reporting 
+		this bug.
+	
+		It is now possible to get full control of the filenaming
+		algorithm before output files are generated, and the default
+		algorithm is safer.  Thanks to Laurent Amon for pointing
+		out the problems, and suggesting some solutions. 
+
+		Fixed illegal "simple" multipart test file.  D'OH!
+
+	1.9	No changes: 1.8 failed CPAN registration
+
 	1.8.	Fixed incompatibility with 5.001 and FileHandle::new_tmpfile
 		Added COPYING file, and improved README.
 

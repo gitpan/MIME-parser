@@ -25,7 +25,10 @@ of MIME::Decoder whose C<decode()> method will perform the appropriate
 decoding action.  
 
 You can even create your own subclasses and "install" them so that
-MIME::Decoder will know about them.
+MIME::Decoder will know about them, via the C<install()> method
+
+Want to know if a given encoding is currently supported? 
+Use the C<supported()> class methed.
 
 
 =head1 SYNOPSIS
@@ -141,7 +144,7 @@ see L<"MIME::Decoder::Binary"> for details.
 );
 
 # The package version, in 1.23 style:
-$VERSION = sprintf("%d.%02d", q$Revision: 1.6 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.7 $ =~ /(\d+)\.(\d+)/);
 
 
 
@@ -207,6 +210,56 @@ sub decode {
     $self->decode_it($in, $out);   # invoke back-end method to do the work
 }
 
+#------------------------------------------------------------
+# supported
+#------------------------------------------------------------
+
+=item supported [ENCODING]
+
+I<Class method>.
+With one arg (an ENCODING name), returns truth if that encoding
+is currently handled, and falsity otherwise.  The ENCODING will
+be automatically coerced to lowercase:
+
+    if (MIME::Decoder->supported('7BIT')) {
+        # yes, we can handle it...
+    }
+    else {
+        # drop back six and punt...
+    } 
+
+With no args, returns all the available decoders as a hash reference... 
+where the key is the encoding name (all lowercase, like '7bit'),
+and the associated value is true (it happens to be the name of the class 
+that handles the decoding, but you probably shouldn't rely on that).
+Hence:
+
+    my $supported = MIME::Decoder->supported;
+    if ($supported->{7bit}) {
+        # yes, we can handle it...
+    }
+    elsif ($supported->{8bit}) {
+        # yes, we can handle it...
+    }
+
+You may safely modify this hash; it will I<not> change the way the 
+module performs its lookups.  Only C<install> can do that.
+
+I<Thanks to Achim Bohnet for suggesting this method.>
+
+=cut
+
+sub supported {
+    my ($class, $decoder) = @_;
+    
+    if (defined($decoder)) {     # is this decoder available?
+	return $DecoderFor{lc($decoder)};
+    }
+    else {                       # return 'em all!
+	my %safecopy = %DecoderFor;
+	return \%safecopy;
+    }
+}
 
 #------------------------------
 
@@ -416,7 +469,7 @@ it and/or modify it under the same terms as Perl itself.
 
 =head1 VERSION
 
-$Revision: 1.6 $ $Date: 1996/04/30 14:32:00 $
+$Revision: 1.7 $ $Date: 1996/06/06 23:30:38 $
 
 =cut
 
@@ -438,6 +491,8 @@ require MIME::Decoder;
     
 my $decoder = new MIME::Decoder 'quoted-printable';
 
+die "yow! no quoted-print!" if (!(supported MIME::Decoder "quoted-PRINTABLE"));
+print STDOUT "* Cool: quoted-printable is supported...\n";
 print STDOUT "* Waiting for quoted-printable data on STDIN...\n";
 $decoder->decode(\*STDIN, \*STDOUT);
 

@@ -50,23 +50,21 @@ install:
 # For developer only...
 #------------------------------------------------------------
 
+POD2HTML       = pod2html2
 POD2HTML_FLAGS = --podpath=. --flush --htmlroot=..
 HTMLS          = ${MODS:.pm=.html}
 VPATH          = MIME
 
 .SUFFIXES: .pm .pod .html
 
-# v.1.8 generated 30 Apr 96
-# v.1.9 is only because 1.8 failed CPAN ingestion
 dist: documented	
-	VERSION=1.9 ; \
-	mkdist -tgz MIME-parser-$$VERSION ; \
-	cp MKDIST/MIME-parser-$$VERSION.tgz ${HOME}/public_html/cpan
-	
+	VERSION=1.10 ; \
+	mkdist -tgz MIME-parser-$$VERSION
+
 documented: ${HTMLS} ${MODS}
 
 .pm.html:
-	pod2html ${POD2HTML_FLAGS} \
+	${POD2HTML} ${POD2HTML_FLAGS} \
 		--title=MIME::$* \
 		--infile=$< \
 		--outfile=docs/$*.html

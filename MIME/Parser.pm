@@ -156,7 +156,7 @@ use Carp;
 #------------------------------
 
 # The package version, in 1.23 style:
-$VERSION = sprintf("%d.%02d", q$Revision: 1.7 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.8 $ =~ /(\d+)\.(\d+)/);
 
 # How to catenate:
 $CAT = '/bin/cat';
@@ -206,32 +206,6 @@ sub new {
 }
 
 #------------------------------------------------------------
-# output_path
-#------------------------------------------------------------
-
-=item output_path HEAD
-
-Given a MIME head for a file to be extracted, come up with a good
-output pathname for the extracted file.  
-
-B<WARNING:> This needs a I<lot> more work.
-
-If you don't like the behavior of this function, you can override it
-in a subclass.
-
-=cut
-
-sub output_path {
-    my ($self, $head) = @_;
-
-    ++$G_output_path;
-    my $bodyfilename = $head->recommended_filename || 
-	($self->output_prefix . "-$$-$G_output_path.doc");
-    
-    return $self->output_dir . "/$bodyfilename";
-}
-
-#------------------------------------------------------------
 # output_dir
 #------------------------------------------------------------
 
@@ -249,8 +223,114 @@ and the previous value is returned.
 
 sub output_dir {
     my ($self, $dir) = @_;
-    $self->{Dir} = $dir if (@_ > 1);
+
+    if (@_ > 1) {     # arg given...
+	$dir = '.' if (!defined($dir) || ($dir eq ''));   # coerce empty to "."
+	$dir = '/.' if ($dir eq '/');   # coerce "/" so "$dir/$filename" works
+	$dir =~ s|/$||;                 # be nice: get rid of any trailing "/"
+	$self->{Dir} = $dir;
+    }
     $self->{Dir};
+}
+
+#------------------------------------------------------------
+# evil_name -- private: is recommended filename evil?
+#------------------------------------------------------------
+sub evil_name {
+    my $name = shift;
+    return 1 if (!defined($name) || ($name eq ''));
+    return 1 if ($name =~ m|/|);                      # currently, '/' is evil
+    return 1 if (($name eq '.') || ($name eq '..'));  # '.' and '..' are evil
+    return 1 if ($name =~ /\x00-\x1f\x80-\xff/);      # non-ASCIIs are evil
+    0;     # it's good!
+}
+
+#------------------------------------------------------------
+# output_path
+#------------------------------------------------------------
+
+=item output_path HEAD
+
+Given a MIME head for a file to be extracted, come up with a good
+output pathname for the extracted file.  
+
+Normally, the "directory" portion will be the C<output_dir()>,
+and the "filename" portion will be the recommended filename extracted from
+the MIME header (or some simple temporary file name, starting with the 
+output_prefix(), if the header does not specify a filename).
+
+If there is a recommended filename, but it is judged to be evil 
+(if it is empty, or if it contains "/"s or ".."s or non-ASCII
+characters), then a warning is issued and the temporary file name
+is used in its place.  I<This may be overly restrictive, so...>
+
+B<NOTE:> If you don't like the behavior of this function, you 
+can change it by installing your own routine.  See C<output_path_hook()>
+for details.
+
+I<Thanks to Laurent Amon for pointing out problems with the original
+implementation, and for making some good suggestions.>
+
+=cut
+
+sub output_path {
+    my ($self, $head) = @_;
+
+    # If there's an output path hook, just call it:
+    if ($self->{OutputPathHook}) {
+	return &{$self->{OutputPathHook}}($self, $head);
+    }
+
+    # Get the output filename:
+    my $outname = $head->recommended_filename;
+    if (evil_name($outname)) {	
+	warn "Desired filename <$outname> is evil... I'm ignoring it\n";
+
+	# Make our OWN filename:
+	++$G_output_path;
+	$outname = ($self->output_prefix . "-$$-$G_output_path.doc");
+    }
+    
+    # Compose the full path from the output directory and filename:
+    my $outdir = $self->output_dir;
+    $outdir = '.' if (!defined($outdir) || ($outdir eq ''));  # just to be safe
+    return "$outdir/$outname";  
+}
+
+#------------------------------------------------------------
+# output_path_hook
+#------------------------------------------------------------
+
+=item output_path_hook SUBREF
+
+Install a different function to generate the output filename
+    for extracted message data.  Declare it like this:
+
+    sub my_output_path_hook {
+        my $parser = shift;   # this MIME::Parser
+	my $head = shift;     # the MIME::Head for the current message
+
+        # Your code here: it must return a path that can be 
+        # open()ed for writing.  Remember that you can ask the
+        # $parser about the output_dir, and you can ask the
+        # $head about the recommended_filename!
+    }
+
+And install it immediately before parsing the input stream, like this:
+
+    # Create a new parser object, and install my own output_path hook:
+    my $parser = new MIME::Parser;
+    $parser->output_path_hook(\&my_output_path_hook);
+    
+    # NOW we can parse an input stream:
+    $entity = $parser->read(\*STDIN);
+
+=cut
+
+sub output_path_hook {
+    my ($self, $subr) = @_;
+    $self->{OutputPathHook} = $subr if (@_ > 1);
+    $self->{OutputPathHook};
 }
 
 #------------------------------------------------------------
@@ -295,7 +375,7 @@ sub parse_preamble {
     my ($delim, $close) = ("--$inner_bound", "--$inner_bound--");
 
     # Parse preamble:
-    $DEBUG and print STDERR "preamble inner bound: <$inner_bound>\n";
+    $DEBUG and print STDERR "skip until\n\tdelim <$delim>\n\tclose <$close>\n";
     while (<$in>) {
 	chomp;
 	$DEBUG and print STDERR "preamble: <$_>\n";
@@ -320,10 +400,11 @@ sub parse_epilogue {
     my ($self, $in, $outer_bound) = @_;
 
     # If there's a boundary, get possible delimiters (for efficiency):
-    my ($delim, $close) = ("--$outer-bound", "--$outer_bound--") 
+    my ($delim, $close) = ("--$outer_bound", "--$outer_bound--") 
 	if defined($outer_bound);
 
-    # Parse preamble:
+    # Parse epilogue:
+    $DEBUG and print STDERR "skip until\n\tdelim <$delim>\n\tclose <$close>\n";
     while (<$in>) {
 	chomp;
 	$DEBUG and print STDERR "epilogue: <$_>\n";
@@ -490,6 +571,41 @@ sub parse_part {
 }
 
 #------------------------------------------------------------
+# parse_two
+#------------------------------------------------------------
+
+=item parse_two HEADFILE BODYFILE
+
+Convenience front-end onto C<read()>, intended for programs 
+running under mail-handlers like B<deliver>, which splits the incoming
+mail message into a header file and a body file.
+
+Simply give this method the paths to the respective files.  
+I<These must be pathnames:> Perl "open-able" expressions won't
+work, since the pathnames are shell-quoted for safety.
+
+B<WARNING:> it is assumed that, once the files are cat'ed together,
+there will be a blank line separating the head part and the body part.
+
+=cut
+
+sub parse_two {
+    my ($self, $headfile, $bodyfile) = @_;
+    my @result;
+
+    # Shell-quote the filenames:
+    my $safe_headfile = shell_quote($headfile);
+    my $safe_bodyfile = shell_quote($bodyfile);
+
+    # Catenate the files, and open a stream on them:
+    open(CAT, qq{$CAT $safe_headfile $safe_bodyfile |}) or
+	return error("couldn't open $CAT pipe: $!");
+    @result = $self->read(\*CAT);
+    close (CAT);
+    @result;
+}
+
+#------------------------------------------------------------
 # read 
 #------------------------------------------------------------
 
@@ -525,40 +641,6 @@ sub shell_quote {
     return "\"$str\"";        # wrap in double-quotes
 }
 
-#------------------------------------------------------------
-# parse_two
-#------------------------------------------------------------
-
-=item parse_two HEADFILE BODYFILE
-
-Convenience front-end onto C<read()>, intended for programs 
-running under mail-handlers like B<deliver>, which splits the incoming
-mail message into a header file and a body file.
-
-Simply give this method the paths to the respective files.  
-I<These must be pathnames:> Perl "open-able" expressions won't
-work, since the pathnames are shell-quoted for safety.
-
-B<WARNING:> it is assumed that, once the files are cat'ed together,
-there will be a blank line separating the head part and the body part.
-
-=cut
-
-sub parse_two {
-    my ($self, $headfile, $bodyfile) = @_;
-    my @result;
-
-    # Shell-quote the filenames:
-    my $safe_headfile = shell_quote($headfile);
-    my $safe_bodyfile = shell_quote($bodyfile);
-
-    # Catenate the files, and open a stream on them:
-    open(CAT, qq{$CAT $safe_headfile $safe_bodyfile |}) or
-	return error("couldn't open $CAT pipe: $!");
-    @result = $self->read(\*CAT);
-    close (CAT);
-    @result;
-}
 
 #------------------------------------------------------------
 
@@ -617,7 +699,6 @@ each line... I<but this is as it should be>.
 
 =back
 
-
 =head1 SEE ALSO
 
 MIME::Decoder,
@@ -634,7 +715,7 @@ it and/or modify it under the same terms as Perl itself.
 
 =head1 VERSION
 
-$Revision: 1.7 $ $Date: 1996/04/30 14:46:08 $
+$Revision: 1.8 $ $Date: 1996/06/06 23:42:39 $
 
 =cut
 
@@ -656,11 +737,27 @@ BEGIN { unshift @INC, "./etc" }
 use MIME::Parser;
 use MIME::Entity;
 
+$Counter = 0;
+
+# simple_output_path -- sample hook function, for testing
+sub simple_output_path {
+    my ($parser, $head) = @_;
+
+    # Get the output filename:
+    ++$Counter;
+    my $outname = "message-$Counter.dat";
+    my $outdir = $parser->output_dir;
+    "$outdir/$outname";  
+}
+
 $DIR = "./testout";
 ((-d $DIR) && (-w $DIR)) or die "no output directory $DIR";
 
 my $parser = new MIME::Parser;
 $parser->output_dir($DIR);
+
+# Uncomment me to see path hooks in action...
+# $parser->output_path_hook(\&simple_output_path);
 
 print "* Waiting for a MIME message from STDIN...\n";
 my $entity = $parser->read(\*STDIN);
@@ -673,3 +770,4 @@ print "=" x 60, "\n\n";
 
 #------------------------------------------------------------
 1;
+

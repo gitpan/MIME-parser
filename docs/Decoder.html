@@ -68,7 +68,12 @@ of MIME::Decoder whose <CODE>decode()</CODE> method will perform the appropriate
 <P>
 
 You can even create your own subclasses and ``install'' them so that
-MIME::Decoder will know about them.
+MIME::Decoder will know about them, via the <CODE>install()</CODE> method
+
+
+<P>
+
+Want to know if a given encoding is currently supported? Use the <CODE>supported()</CODE> class methed.
 
 
 <P>
@@ -269,6 +274,62 @@ the decoded information to the output filehandle OUTSTREAM.
 
 <P>
 
+<DT><STRONG><A NAME="item_supported_encoding">supported [ENCODING]
+
+</A></STRONG><DD>
+<EM>Class method</EM>
+. With one arg (an ENCODING name), returns truth if that encoding is
+currently handled, and falsity otherwise. The ENCODING will be
+automatically coerced to lowercase:
+
+
+<P>
+
+<PRE>
+    if (MIME::Decoder-&gt;supported('7BIT')) {
+        # yes, we can handle it...
+    }
+    else {
+        # drop back six and punt...
+    } 
+</PRE>
+
+<P>
+
+With no args, returns all the available decoders as a hash reference...
+where the key is the encoding name (all lowercase, like '7bit'), and the
+associated value is true (it happens to be the name of the class that
+handles the decoding, but you probably shouldn't rely on that). Hence:
+
+
+<P>
+
+<PRE>
+    my $supported = MIME::Decoder-&gt;supported;
+    if ($supported-&gt;{7bit}) {
+        # yes, we can handle it...
+    }
+    elsif ($supported-&gt;{8bit}) {
+        # yes, we can handle it...
+    }
+</PRE>
+
+<P>
+
+You may safely modify this hash; it will <EM>not</EM>
+ change the way the module performs its lookups. Only <CODE>install</CODE> can do that.
+
+
+<P>
+
+<EM>Thanks to Achim Bohnet for suggesting this method.</EM>
+
+
+
+
+
+<P>
+
 </DL>
 <P>
 <HR>
@@ -385,7 +446,7 @@ and/or modify it under the same terms as Perl itself.
 <P>
 <HR>
 <H1><A NAME="version">VERSION</A></H1>
-$Revision: 1.6 $ $Date: 1996/04/30 14:32:00 $
+$Revision: 1.7 $ $Date: 1996/06/06 23:30:38 $
 
 
 <P>

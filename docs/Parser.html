@@ -235,28 +235,6 @@ doing the actual parsing:
 
 <P>
 
-<DT><STRONG><A NAME="item_output_path_head">output_path HEAD
-
-</A></STRONG><DD>
-Given a MIME head for a file to be extracted, come up with a good output
-pathname for the extracted file.  
-
-
-<P>
-
-<STRONG>WARNING:</STRONG>
- This needs a <EM>lot</EM>
- more work.
-
-
-<P>
-
-If you don't like the behavior of this function, you can override it in a
-subclass.
-
-
-<P>
-
 <DT><STRONG><A NAME="item_output_dir_optvalue">output_dir OPTVALUE
 
 </A></STRONG><DD>
@@ -272,6 +250,92 @@ If <CODE>OPTVALUE</CODE>  <EM>is not</EM>
  given, the output directory is set to the new value, and the previous value
 is returned.
 
+
+<P>
+
+<DT><STRONG><A NAME="item_output_path_head">output_path HEAD
+
+</A></STRONG><DD>
+Given a MIME head for a file to be extracted, come up with a good output
+pathname for the extracted file.  
+
+
+<P>
+
+Normally, the ``directory'' portion will be the <CODE>output_dir()</CODE>, and the ``filename'' portion will be the recommended filename extracted
+from the MIME header (or some simple temporary file name, starting with the
+<CODE>output_prefix(),</CODE> if the header does not specify a filename).
+
+
+<P>
+
+If there is a recommended filename, but it is judged to be evil (if it is
+empty, or if it contains ``/''s or ``..''s or non-ASCII characters), then a
+warning is issued and the temporary file name is used in its place.  <EM>This may be overly restrictive, so...</EM>
+
+
+
+
+
+<P>
+
+<STRONG>NOTE:</STRONG>
+ If you don't like the behavior of this function, you can change it by
+installing your own routine. See <CODE>output_path_hook()</CODE>
+for details.
+
+
+<P>
+
+<EM>Thanks to Laurent Amon for pointing out problems with the original
+implementation, and for making some good suggestions.</EM>
+
+
+
+
+
+<P>
+
+<DT><STRONG><A NAME="item_output_path_hook_subref">output_path_hook SUBREF
+
+</A></STRONG><DD>
+Install a different function to generate the output filename for extracted
+message data. Declare it like this:
+
+
+<P>
+
+<PRE>
+    sub my_output_path_hook {
+        my $parser = shift;   # this MIME::Parser
+	my $head = shift;     # the MIME::Head for the current message
+</PRE>
+
+<P>
+
+<PRE>
+        # Your code here: it must return a path that can be 
+        # open()ed for writing.  Remember that you can ask the
+        # $parser about the output_dir, and you can ask the
+        # $head about the recommended_filename!
+    }
+</PRE>
+
+<P>
+
+And install it immediately before parsing the input stream, like this:
+
+
+<P>
+
+<PRE>
+    # Create a new parser object, and install my own output_path hook:
+    my $parser = new MIME::Parser;
+    $parser-&gt;output_path_hook(\&amp;my_output_path_hook);
+    
+    # NOW we can parse an input stream:
+    $entity = $parser-&gt;read(\*STDIN);
+</PRE>
 
 <P>
 
@@ -299,27 +363,6 @@ is returned.
 
 <P>
 
-<DT><STRONG><A NAME="item_read_filehandle">read FILEHANDLE
-
-</A></STRONG><DD>
-Takes a MIME-stream and splits it into its component entities, each of
-which is decoded and placed in a separate file in the splitter's
-<CODE>output_dir().</CODE>  
-
-
-<P>
-
-The stream should be given as a glob ref to a readable FILEHANDLE; e.g., <CODE>\*STDIN</CODE>.
-
-
-<P>
-
-Returns a MIME::Entity, which may be a single entity, or an
-arbitrarily-nested multipart entity. Returns undef on failure.
-
-
-<P>
-
 <DT><STRONG><A NAME="item_parse_two_headfile_bodyfile">parse_two HEADFILE BODYFILE
 
 </A></STRONG><DD>
@@ -341,6 +384,27 @@ shell-quoted for safety.
 <STRONG>WARNING:</STRONG>
  it is assumed that, once the files are cat'ed together, there will be a
 blank line separating the head part and the body part.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_read_filehandle">read FILEHANDLE
+
+</A></STRONG><DD>
+Takes a MIME-stream and splits it into its component entities, each of
+which is decoded and placed in a separate file in the splitter's
+<CODE>output_dir().</CODE>  
+
+
+<P>
+
+The stream should be given as a glob ref to a readable FILEHANDLE; e.g., <CODE>\*STDIN</CODE>.
+
+
+<P>
+
+Returns a MIME::Entity, which may be a single entity, or an
+arbitrarily-nested multipart entity. Returns undef on failure.
 
 
 <P>
@@ -445,7 +509,7 @@ and/or modify it under the same terms as Perl itself.
 <P>
 <HR>
 <H1><A NAME="version">VERSION</A></H1>
-$Revision: 1.7 $ $Date: 1996/04/30 14:46:08 $
+$Revision: 1.8 $ $Date: 1996/06/06 23:42:39 $
 
 
 <P>

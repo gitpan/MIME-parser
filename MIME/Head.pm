@@ -111,7 +111,7 @@ Where C<$choice> is one of C<IGNORE>, C<ERROR>, or C<COERCE>.
 #------------------------------
 
 # The package version, in 1.23 style:
-$VERSION = sprintf("%d.%02d", q$Revision: 1.8 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.9 $ =~ /(\d+)\.(\d+)/);
 
 # Lifted from Mail::Internet...
 # Pattern to match an RFC-822 field name:
@@ -122,6 +122,9 @@ $VERSION = sprintf("%d.%02d", q$Revision: 1.8 $ =~ /(\d+)\.(\d+)/);
 #     CTL         =  <any ASCII control           ; (  0- 37,  0.- 31.)
 #
 $FIELDNAME = '[^\x00-\x1f\x80-\xff :]+';
+
+# Pattern to match parameter names (like fieldnames, but = not allowed):
+$PARAMNAME = '[^\x00-\x1f\x80-\xff :=]+';
 
 # Pattern to match an RFC-1521 token:
 #
@@ -719,8 +722,9 @@ sub params {
     # No, we can't just "split" on semicolons: they're legal in quoted strings!
     while (1) {                     # keep chopping away until done...
 	$raw =~ m/\s*\;\s*/g or last;                  # skip leading separator
-	$raw =~ m/($FIELDNAME)\s*=\s*/og or last;      # give up if not a param
+	$raw =~ m/($PARAMNAME)\s*=\s*/og or last;      # give up if not a param
 	$param = lc($1);
+	$DEBUG and print STDERR "  param name: $param\n";
 	$raw =~ m/(\"([^\"]+)\")|($TOKEN)/g or last;   # give up if no value
 	$params{$param} = defined($1) ? $2 : $3;
     }
@@ -826,6 +830,7 @@ sub multipart_boundary {
 
     # Is this even a multipart message?
     my ($type) = split('/', $self->mime_type);
+    $DEBUG and print STDERR "type = $type\n";
     return undef if ($type ne 'multipart');
 
     # Get the boundary:
@@ -925,7 +930,7 @@ Advanced Data Solutions.
 
 =head1 VERSION
 
-$Revision: 1.8 $ $Date: 1996/04/30 14:32:00 $
+$Revision: 1.9 $ $Date: 1996/06/06 23:27:02 $
 
 =cut
 

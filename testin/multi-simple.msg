@@ -3,7 +3,7 @@ To:  Ned Freed <ned@innosoft.com>
 Subject: Sample message
 MIME-Version: 1.0
 Content-type: multipart/mixed; boundary="simple
-boundary"
+ boundary"
 
 This is the preamble.  It is to be ignored, though it
 is a handy place for mail composers to include an
