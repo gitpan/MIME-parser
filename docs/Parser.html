@@ -1,0 +1,455 @@
+    <HTML>
+
+    <HEAD>
+    <TITLE>MIME::Parser</TITLE>
+    </HEAD>
+
+    <BODY>
+
+<!-- INDEX BEGIN -->
+<UL>
+	<LI><A HREF="#name">NAME</A>
+	<LI><A HREF="#alpharelease_warning">ALPHA-RELEASE WARNING</A>
+	<LI><A HREF="#description">DESCRIPTION</A>
+	<LI><A HREF="#synopsis">SYNOPSIS</A>
+	<LI><A HREF="#the_nitty_gritty">THE NITTY GRITTY</A>
+	<LI><A HREF="#public_interface">PUBLIC INTERFACE</A>
+	<LI><A HREF="#questionable_practices">QUESTIONABLE PRACTICES</A>
+	<LI><A HREF="#see_also">SEE ALSO</A>
+	<LI><A HREF="#author">AUTHOR</A>
+	<LI><A HREF="#version">VERSION</A>
+</UL>
+<!-- INDEX END -->
+
+<HR>
+<P>
+<H1><A NAME="name">NAME</A></H1>
+MIME::Parser - split MIME mail into decoded components
+
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="alpharelease_warning">ALPHA-RELEASE WARNING</A></H1>
+<EM><STRONG>This code is in an evaluation phase until 1 August 1996.</STRONG>
+
+Depending on any comments/complaints received before this cutoff date, 
+the interface <STRONG>may</STRONG>
+ change in a non-backwards-compatible manner.</EM>
+
+
+
+
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="description">DESCRIPTION</A></H1>
+Where it all begins. This is how you'll parse MIME streams to obtain
+MIME::Entity objects.
+
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="synopsis">SYNOPSIS</A></H1>
+<PRE>
+    use MIME::Parser;
+    
+    # Create a new parser object:
+    my $parser = new MIME::Parser;
+    
+    # Optional: set up parameters that will affect how it extracts 
+    #   documents from the input stream:
+    $parser-&gt;output_dir(&quot;$ENV{HOME}/mimemail&quot;);
+    
+    # Parse an input stream:
+    $entity = $parser-&gt;read(\*STDIN) or die &quot;couldn't parse MIME stream&quot;;
+    
+    # Congratulations: you now have a (possibly multipart) MIME entity!
+    $entity-&gt;dump_skeleton;          # for debugging 
+</PRE>
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="the_nitty_gritty">THE NITTY GRITTY</A></H1>
+RFC-1521 gives us the following BNF grammer for the body of a multipart
+MIME message:
+
+
+<P>
+
+<PRE>
+      multipart-body  := preamble 1*encapsulation close-delimiter epilogue
+</PRE>
+
+<P>
+
+<PRE>
+      encapsulation   := delimiter body-part CRLF
+</PRE>
+
+<P>
+
+<PRE>
+      delimiter       := &quot;--&quot; boundary CRLF 
+                                   ; taken from Content-Type field.
+                                   ; There must be no space between &quot;--&quot; 
+                                   ; and boundary.
+</PRE>
+
+<P>
+
+<PRE>
+      close-delimiter := &quot;--&quot; boundary &quot;--&quot; CRLF 
+                                   ; Again, no space by &quot;--&quot;
+</PRE>
+
+<P>
+
+<PRE>
+      preamble        := discard-text   
+                                   ; to be ignored upon receipt.
+</PRE>
+
+<P>
+
+<PRE>
+      epilogue        := discard-text   
+                                   ; to be ignored upon receipt.
+</PRE>
+
+<P>
+
+<PRE>
+      discard-text    := *(*text CRLF)
+</PRE>
+
+<P>
+
+<PRE>
+      body-part       := &lt;&quot;message&quot; as defined in RFC 822, with all 
+                          header fields optional, and with the specified 
+                          delimiter not occurring anywhere in the message 
+                          body, either on a line by itself or as a substring 
+                          anywhere.  Note that the semantics of a part 
+                          differ from the semantics of a message, as 
+                          described in the text.&gt;
+</PRE>
+
+<P>
+
+From this we glean the following algorithm for parsing a MIME stream:
+
+
+<P>
+
+<PRE>
+    PROCEDURE parse
+    INPUT
+        A FILEHANDLE for the stream.
+        An optional end-of-stream OUTER_BOUND (for a nested multipart message).
+    
+    RETURNS
+        The (possibly-multipart) ENTITY that was parsed.
+        A STATE indicating how we left things: &quot;END&quot; or &quot;ERROR&quot;.
+    
+    BEGIN   
+        LET OUTER_DELIM = &quot;--OUTER_BOUND&quot;.
+        LET OUTER_CLOSE = &quot;--OUTER_BOUND--&quot;.
+    
+        LET ENTITY = a new MIME entity object.
+        LET STATE  = &quot;OK&quot;.
+    
+        Parse the (possibly empty) header, up to and including the
+        blank line that terminates it.   Store it in the ENTITY.
+    
+        IF the MIME type is &quot;multipart&quot;:
+            LET INNER_BOUND = get multipart &quot;boundary&quot; from header.
+            LET INNER_DELIM = &quot;--INNER_BOUND&quot;.
+            LET INNER_CLOSE = &quot;--INNER_BOUND--&quot;.
+    
+            Parse preamble:
+                REPEAT:
+                    Read (and discard) next line
+                UNTIL (line is INNER_DELIM) OR we hit EOF (error).
+    
+            Parse parts:
+                REPEAT:
+                    LET (PART, STATE) = parse(FILEHANDLE, INNER_BOUND).
+                    Add PART to ENTITY.
+                UNTIL (STATE != &quot;DELIM&quot;).
+    
+            Parse epilogue:
+                REPEAT (to parse epilogue): 
+                    Read (and discard) next line
+                UNTIL (line is OUTER_DELIM or OUTER_CLOSE) OR we hit EOF
+                LET STATE = &quot;EOF&quot;, &quot;DELIM&quot;, or &quot;CLOSE&quot; accordingly.
+     
+        ELSE (if the MIME type is not &quot;multipart&quot;):
+            Open output destination (e.g., a file)
+    
+            DO:
+                Read, decode, and output data from FILEHANDLE
+            UNTIL (line is OUTER_DELIM or OUTER_CLOSE) OR we hit EOF.
+            LET STATE = &quot;EOF&quot;, &quot;DELIM&quot;, or &quot;CLOSE&quot; accordingly.
+    
+        ENDIF
+    
+        RETURN (ENTITY, STATE).
+    END
+</PRE>
+
+<P>
+
+For reasons discussed in MIME::Entity, we can't just discard the ``discard
+text'': some mailers actually put data in the preamble.
+
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="public_interface">PUBLIC INTERFACE</A></H1>
+<DL>
+<DT><STRONG><A NAME="item_new">new
+
+</A></STRONG><DD>
+Create a new parser object. You can then set up various parameters before
+doing the actual parsing:
+
+
+<P>
+
+<PRE>
+    my $parser = new MIME::Parser;
+    $parser-&gt;output_dir(&quot;/tmp&quot;);
+    $parser-&gt;output_prefix(&quot;msg1&quot;);
+    my $entity = $parser-&gt;read(\*STDIN);
+</PRE>
+
+<P>
+
+<DT><STRONG><A NAME="item_output_path_head">output_path HEAD
+
+</A></STRONG><DD>
+Given a MIME head for a file to be extracted, come up with a good output
+pathname for the extracted file.  
+
+
+<P>
+
+<STRONG>WARNING:</STRONG>
+ This needs a <EM>lot</EM>
+ more work.
+
+
+<P>
+
+If you don't like the behavior of this function, you can override it in a
+subclass.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_output_dir_optvalue">output_dir OPTVALUE
+
+</A></STRONG><DD>
+Get/set the output directory for the parsing operation. This is the
+directory where the extracted and decoded body parts will go. The default
+is <CODE>"."</CODE>.
+
+
+<P>
+
+If <CODE>OPTVALUE</CODE>  <EM>is not</EM>
+ given, the current output directory is returned. If <CODE>OPTVALUE</CODE>  <EM>is</EM>
+ given, the output directory is set to the new value, and the previous value
+is returned.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_output_prefix_optvalue">output_prefix OPTVALUE
+
+</A></STRONG><DD>
+Get/set the output prefix for the parsing operation.
+
+
+<P>
+
+Get/set the output directory for the parsing operation. This is a short
+string that all filenames for extracted and decoded body parts will begin
+with. The default is <EM>"msg"</EM>
+.
+
+
+<P>
+
+If <CODE>OPTVALUE</CODE>  <EM>is not</EM>
+ given, the current output prefix is returned. If <CODE>OPTVALUE</CODE>  <EM>is</EM>
+ given, the output directory is set to the new value, and the previous value
+is returned.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_read_filehandle">read FILEHANDLE
+
+</A></STRONG><DD>
+Takes a MIME-stream and splits it into its component entities, each of
+which is decoded and placed in a separate file in the splitter's
+<CODE>output_dir().</CODE>  
+
+
+<P>
+
+The stream should be given as a glob ref to a readable FILEHANDLE; e.g., <CODE>\*STDIN</CODE>.
+
+
+<P>
+
+Returns a MIME::Entity, which may be a single entity, or an
+arbitrarily-nested multipart entity. Returns undef on failure.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_parse_two_headfile_bodyfile">parse_two HEADFILE BODYFILE
+
+</A></STRONG><DD>
+Convenience front-end onto <CODE>read()</CODE>, intended for programs running under mail-handlers like <STRONG>deliver</STRONG>
+, which splits the incoming mail message into a header file and a body
+file.
+
+
+<P>
+
+Simply give this method the paths to the respective files.  
+<EM>These must be pathnames:</EM>
+ Perl ``open-able'' expressions won't work, since the pathnames are
+shell-quoted for safety.
+
+
+<P>
+
+<STRONG>WARNING:</STRONG>
+ it is assumed that, once the files are cat'ed together, there will be a
+blank line separating the head part and the body part.
+
+
+<P>
+
+</DL>
+<P>
+<HR>
+<H1><A NAME="questionable_practices">QUESTIONABLE PRACTICES</A></H1>
+<DL>
+<DT><STRONG><A NAME="item_multipart_messages_are_always_re">Multipart messages are always read line-by-line 
+
+</A></STRONG><DD>
+Multipart document parts are read line-by-line, so that the encapsulation
+boundaries may easily be detected. However, bad MIME composition agents
+(for example, naive CGI scripts) might return multipart documents where the
+parts are, say, unencoded bitmap files... and, consequently, where such
+``lines'' might be veeeeeeeeery long indeed.
+
+
+<P>
+
+A better solution for this case would be to set up some form of state
+machine for input processing. This will be left for future versions.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_multipart_parts_read_into_temp_f">Multipart parts read into temp files before decoding
+
+</A></STRONG><DD>
+In my original implementation, the MIME::Decoder classes had to be aware of
+encapsulation boundaries in multipart MIME documents. While this
+decode-while-parsing approach obviated the need for temporary files, it
+resulted in inflexible and complex decoder implementations.
+
+
+<P>
+
+The revised implementation uses temporary files (a la <CODE>tmpfile()</CODE>) to hold the encoded portions of MIME documents. Such files are deleted
+automatically after decoding is done, and no more than one such file is
+opened at a time, so you should never need to worry about them.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_fuzzing_of_crlf_and_newline_on_i">Fuzzing of CRLF and newline on input
+
+</A></STRONG><DD>
+RFC-1521 dictates that MIME streams have lines terminated by CRLF (<CODE>"\r\n"</CODE>). However, it is extremely likely that folks will want to parse MIME
+streams where each line ends in the local newline character <CODE>"\n"</CODE> instead. 
+
+
+<P>
+
+An attempt has been made to allow the parser to handle both CRLF and
+newline-terminated input.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_fuzzing_of_crlf_and_newline_on_o">Fuzzing of CRLF and newline on output
+
+</A></STRONG><DD>
+The <CODE>"7bit"</CODE> and <CODE>"8bit"</CODE> decoders will decode both a <CODE>"\n"</CODE> and a <CODE>"\r\n"</CODE> end-of-line sequence into a <CODE>"\n"</CODE>.
+
+
+<P>
+
+The <CODE>"binary"</CODE> decoder (default if no encoding specified) still outputs stuff verbatim...
+so a MIME message with CRLFs and no explicit encoding will be output as a
+text file that, on many systems, will have an annoying ^M at the end of
+each line... <EM>but this is as it should be</EM>
+.
+
+
+<P>
+
+</DL>
+<P>
+<HR>
+<H1><A NAME="see_also">SEE ALSO</A></H1>
+MIME::Decoder, MIME::Entity, MIME::Head, MIME::Parser.
+
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="author">AUTHOR</A></H1>
+Copyright (c) 1996 by Eryq / <A
+HREF="MAILTO:eryq@rhine.gsfc.nasa.gov">eryq@rhine.gsfc.nasa.gov</A>
+
+
+<P>
+
+All rights reserved. This program is free software; you can redistribute it
+and/or modify it under the same terms as Perl itself.
+
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="version">VERSION</A></H1>
+$Revision: 1.7 $ $Date: 1996/04/30 14:46:08 $
+
+
+<P>
+
+    </BODY>
+
+    </HTML>

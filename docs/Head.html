@@ -1,0 +1,901 @@
+    <HTML>
+
+    <HEAD>
+    <TITLE>MIME::Head</TITLE>
+    </HEAD>
+
+    <BODY>
+
+<!-- INDEX BEGIN -->
+<UL>
+	<LI><A HREF="#name">NAME</A>
+	<LI><A HREF="#alpharelease_warning">ALPHA-RELEASE WARNING</A>
+	<LI><A HREF="#description">DESCRIPTION</A>
+	<LI><A HREF="#synopsis">SYNOPSIS</A>
+	<LI><A HREF="#compatibility_tweaks">COMPATIBILITY TWEAKS</A>
+	<LI><A HREF="#public_interface">PUBLIC INTERFACE</A>
+	<UL>
+		<LI><A HREF="#creation_input_and_output">Creation, input, and output</A>
+		<LI><A HREF="#gettingsetting_fields">Getting/setting fields</A>
+		<LI><A HREF="#mimespecific_stuff">MIME-specific stuff</A>
+	</UL>
+	<LI><A HREF="#under_the_hood">UNDER THE HOOD</A>
+	<UL>
+		<LI><A HREF="#implementation">Implementation</A>
+	</UL>
+	<LI><A HREF="#see_also">SEE ALSO</A>
+	<LI><A HREF="#author">AUTHOR</A>
+	<LI><A HREF="#version">VERSION</A>
+</UL>
+<!-- INDEX END -->
+
+<HR>
+<P>
+<H1><A NAME="name">NAME</A></H1>
+MIME::Head - MIME message header
+
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="alpharelease_warning">ALPHA-RELEASE WARNING</A></H1>
+<EM><STRONG>This code is in an evaluation phase until 1 August 1996.</STRONG>
+
+Depending on any comments/complaints received before this cutoff date, 
+the interface <STRONG>may</STRONG>
+ change in a non-backwards-compatible manner.</EM>
+
+
+
+
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="description">DESCRIPTION</A></H1>
+A class for parsing in and manipulating RFC-822 message headers, with some
+methods geared towards standard (and not so standard) MIME fields as
+specified in RFC-1521, <EM>Multipurpose Internet Mail Extensions</EM>
+.
+
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="synopsis">SYNOPSIS</A></H1>
+Start off by requiring or using this package:
+
+
+<P>
+
+<PRE>
+    require MIME::Head;
+</PRE>
+
+<P>
+
+You can create a MIME::Head object in a number of ways:
+
+
+<P>
+
+<PRE>
+    # Create a new, empty header, and populate it manually:    
+    $head = MIME::Head-&gt;new;
+    $head-&gt;set('content-type', 'text/plain; charset=US-ASCII');
+    $head-&gt;set('content-length', $len);
+    
+    # Create a new header by parsing in the STDIN stream:
+    $head = MIME::Head-&gt;read(\*STDIN);
+    
+    # Create a new header by parsing in a file:
+    $head = MIME::Head-&gt;from_file(&quot;/tmp/test.hdr&quot;);
+    
+    # Create a new header by running a program:
+    $head = MIME::Head-&gt;from_file(&quot;cat a.hdr b.hdr |&quot;);
+</PRE>
+
+<P>
+
+To get rid of all internal newlines in all fields:
+
+
+<P>
+
+<PRE>
+    # Get rid of all internal newlines:
+    $head-&gt;unfold();
+</PRE>
+
+<P>
+
+To test whether a given field exists:
+
+
+<P>
+
+<PRE>
+    # Was a &quot;Subject:&quot; given?
+    if ($head-&gt;exists('subject')) {
+        # yes, it does!
+    }
+</PRE>
+
+<P>
+
+To get the contents of that field as a string:
+
+
+<P>
+
+<PRE>
+    # Is this a reply?
+    $reply = 1 if ($head-&gt;get('Subject') =~ /^Re: /);
+</PRE>
+
+<P>
+
+To set the contents of a field to a given string:
+
+
+<P>
+
+<PRE>
+    # Is this a reply?
+    $head-&gt;set('Content-type', 'text/html');
+</PRE>
+
+<P>
+
+To extract parameters from certain structured fields, as a hash reference:
+
+
+<P>
+
+<PRE>
+    # What's the MIME type?
+    $params = $head-&gt;params('content-type');
+    $mime_type = $$params{_};
+    $char_set  = $$params{'charset'};
+    $file_name = $$params{'name'};
+</PRE>
+
+<P>
+
+To get certain commonly-used MIME information:
+
+
+<P>
+
+<PRE>
+    $mime_type = $head-&gt;mime_type;
+    
+    $mime_encoding = $head-&gt;mime_encoding;
+    
+    $file_name = $head-&gt;recommended_filename;
+    
+    $boundary = $head-&gt;multipart_boundary;
+</PRE>
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="compatibility_tweaks">COMPATIBILITY TWEAKS</A></H1>
+The parser may be tweaked so that any line in the header stream that begins
+with <CODE>"From "</CODE> will be either <STRONG>ignored</STRONG>
+, flagged as an 
+<STRONG>error</STRONG>
+, or <STRONG>coerced</STRONG>
+ into the special field <CODE>"Mail-from:"</CODE> 
+(the default; this approach was inspired by Emacs's ``Babyl'' format).
+Though not valid for a MIME header, this will provide compatibility with
+some Unix mail messages. Just do this:
+
+
+<P>
+
+<PRE>
+    MIME::Head-&gt;tweak_FROM_parsing($choice)
+</PRE>
+
+<P>
+
+Where <CODE>$choice</CODE> is one of <CODE>IGNORE</CODE>, <CODE>ERROR</CODE>, or <CODE>COERCE</CODE>.
+
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="public_interface">PUBLIC INTERFACE</A></H1>
+<P>
+<HR>
+<H2><A NAME="creation_input_and_output">Creation, input, and output</A></H2>
+<DL>
+<DT><STRONG><A NAME="item_new">new
+
+</A></STRONG><DD>
+<EM>Class method</EM>
+. Creates a new header object, with no fields.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_from_file_expr">from_file EXPR
+
+</A></STRONG><DD>
+<EM>Class or instance method</EM>
+. For convenience, you can use this to parse a header object in from EXPR,
+which may actually be any expression that can be sent to
+<CODE>open()</CODE> so as to return a readable filehandle. The ``file''
+will be opened, read, and then closed:
+
+
+<P>
+
+<PRE>
+    # Create a new header by parsing in a file:
+    my $head = MIME::Head-&gt;from_file(&quot;/tmp/test.hdr&quot;);
+</PRE>
+
+<P>
+
+Since this method can function as either a class constructor <EM>or</EM>
+ 
+an instance initializer, the above is exactly equivalent to:
+
+
+<P>
+
+<PRE>
+    # Create a new header by parsing in a file:
+    my $head = MIME::Head-&gt;new-&gt;from_file(&quot;/tmp/test.hdr&quot;);
+</PRE>
+
+<P>
+
+On success, the object will be returned; on failure, the undefined value.
+
+
+<P>
+
+This is really just a convenience front-end onto <CODE>read()</CODE>.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_read_filehandle">read FILEHANDLE
+
+</A></STRONG><DD>
+<EM>Class or instance method</EM>
+. This constructs a header object by reading it in from a FILEHANDLE, until
+either a blank line or an end-of-stream is encountered. A syntax error will
+also halt processing.
+
+
+<P>
+
+Supply this routine with a reference to a filehandle glob; e.g., <CODE>\*STDIN</CODE>:
+
+
+<P>
+
+<PRE>
+    # Create a new header by parsing in STDIN:
+    my $head = MIME::Head-&gt;read(\*STDIN);
+</PRE>
+
+<P>
+
+Since this method can function as either a class constructor <EM>or</EM>
+ 
+an instance initializer, the above is exactly equivalent to:
+
+
+<P>
+
+<PRE>
+    # Create a new header by parsing in STDIN:
+    my $head = MIME::Head-&gt;new-&gt;read(\*STDIN);
+</PRE>
+
+<P>
+
+Except that you should probably use th first form. On success, the object
+will be returned; on failure, the undefined value.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_print_filehandle">print FILEHANDLE
+
+</A></STRONG><DD>
+Output to the given FILEHANDLE, or to the currently-selected filehandle if
+none was given:
+
+
+<P>
+
+<PRE>
+    # Output to STDOUT:
+    $head-&gt;print(\*STDOUT);
+</PRE>
+
+<P>
+
+<STRONG>WARNING:</STRONG>
+ this method does not output the blank line that terminates the header in a
+legal message (since you may not always want it).
+
+
+<P>
+
+</DL>
+<P>
+<HR>
+<H2><A NAME="gettingsetting_fields">Getting/setting fields</A></H2>
+<STRONG>NOTE:</STRONG>
+ this interface is not as extensive as that of MIME::Internet; however, I
+have provided a set of methods that I can guarantee are supportable across
+any changes to the internal implementation of this class.
+
+
+<P>
+
+Anything that you can't do here, you'll have to do 
+
+
+<P>
+
+<DL>
+<DT><STRONG><A NAME="item_add_fieldtextwhere">add FIELD,TEXT,[WHERE]
+
+</A></STRONG><DD>
+Add a new occurence of the FIELD, given by TEXT:
+
+
+<P>
+
+<PRE>
+    # Add the trace information:    
+    $head-&gt;add('Received', 'from eryq.pr.mcs.net by gonzo.net with smtp');
+</PRE>
+
+<P>
+
+The FIELD is automatically coerced to lowercase. Returns the TEXT.
+
+
+<P>
+
+Normally, the new occurence will be <EM>appended</EM>
+ to the existing occurences. However, if the optional WHERE argument is the
+string <CODE>"BEFORE"</CODE>, then the new occurence will be <EM>prepended</EM>
+.
+<STRONG>NOTE:</STRONG>
+ if you want to be <EM>explicit</EM>
+ about appending, use the string <CODE>"AFTER"</CODE> for this argument.
+
+
+<P>
+
+<STRONG>WARNING</STRONG>
+: this method always adds new occurences; it doesn't overwrite any existing
+occurences... so if you just want to <EM>change</EM>
+ the value of a field (creating it if necessary), then you probably <STRONG>don't</STRONG>
+ want to use this method: consider using <CODE>set()</CODE> instead.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_add_text_fieldtext">add_text FIELD,TEXT
+
+</A></STRONG><DD>
+Add some more text to the [last occurence of the] field:
+
+
+<P>
+
+<PRE>
+    # Force an explicit character set:
+    if ($head-&gt;get('Content-type') !~ /\bcharset=/) {
+        $head-&gt;add_text('Content-type', '; charset=&quot;us-ascii&quot;');
+    }
+</PRE>
+
+<P>
+
+The FIELD is automatically coerced to lowercase.
+
+
+<P>
+
+<STRONG>WARNING: be careful if adding text that contains a newline!</STRONG>
+
+A newline in a field value <EM>must</EM>
+ be followed by a single space or tab to be a valid continuation line!  
+
+
+<P>
+
+I had considered building this routine so that it ``fixed'' bare newlines
+for you, but then I decided against it, since the behind-the-scenes
+trickery would probably create more problems through confusion. So,
+instead, you've just been warned... proceed with caution.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_delete_field">delete FIELD
+
+</A></STRONG><DD>
+Delete all occurences of the given field.
+
+
+<P>
+
+<PRE>
+    # Remove all the MIME information:
+    $head-&gt;delete('MIME-Version');
+    $head-&gt;delete('Content-type');
+    $head-&gt;delete('Content-transfer-encoding');
+    $head-&gt;delete('Content-disposition');
+</PRE>
+
+<P>
+
+Currently returns 1 always.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_exists_field">exists FIELD
+
+</A></STRONG><DD>
+Returns whether a given field exists:
+
+
+<P>
+
+<PRE>
+    # Was a &quot;Subject:&quot; given?
+    if ($head-&gt;exists('subject')) {
+        # yes, it does!
+    }
+</PRE>
+
+<P>
+
+The FIELD is automatically coerced to lowercase. This method returns the
+undefined value if the field doesn't exist, and some true value if it does.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_fields">fields
+
+</A></STRONG><DD>
+Return a list of all fields (in no particular order):
+
+
+<P>
+
+<PRE>
+    foreach $field (sort $head-&gt;fields) {
+        print &quot;$field: &quot;, $head-&gt;get($field), &quot;\n&quot;;
+    }
+</PRE>
+
+<P>
+
+<DT><STRONG><A NAME="item_get_fieldoccur">get FIELD,[OCCUR]
+
+</A></STRONG><DD>
+Returns the text of the [first occurence of the] field, or the empty string
+if the field is not present (nice for avoiding those ``undefined value''
+warnings):
+
+
+<P>
+
+<PRE>
+    # Is this a reply?
+    $is_reply = 1 if ($head-&gt;get('Subject') =~ /^Re: /);
+</PRE>
+
+<P>
+
+<STRONG>NOTE:</STRONG>
+ this returns the <EM>first</EM>
+ occurence of the field, so as to be consistent with Mail::Internet::get().
+However, if the optional OCCUR argument is defined, it specifies the index
+of the occurence you want: 
+<STRONG>zero</STRONG>
+ for the first, and <STRONG>-1</STRONG>
+ for the last.
+
+
+<P>
+
+<PRE>
+    # Print the first 'Received:' entry:
+    print &quot;Most recent: &quot;, $head-&gt;get('received'), &quot;\n&quot;;
+    
+    # Print the first 'Received:' entry, explicitly:
+    print &quot;Most recent: &quot;, $head-&gt;get('received', 0), &quot;\n&quot;;
+    
+    # Print the last 'Received:' entry:
+    print &quot;Least recent: &quot;, $head-&gt;get('received', -1), &quot;\n&quot;; 
+</PRE>
+
+<P>
+
+<DT><STRONG><A NAME="item_get_all_field">get_all FIELD
+
+</A></STRONG><DD>
+Returns the list of <EM>all</EM>
+ occurences of the field, or the empty list if the field is not present:
+
+
+<P>
+
+<PRE>
+    # How did it get here?
+    @history = $head-&gt;get_all('Received');
+</PRE>
+
+<P>
+
+<STRONG>NOTE:</STRONG>
+ I had originally experimented with having <CODE>get()</CODE> return all occurences when invoked in an array context... but that causes a
+lot of accidents when you get careless and do stuff like this:
+
+
+<P>
+
+<PRE>
+    print &quot;\u$field: &quot;, $head-&gt;get($field), &quot;\n&quot;;
+</PRE>
+
+<P>
+
+It also made the intuitive behaviour unclear if the OCCUR argument was
+given in an array context. So I opted for an explicit approach to asking
+for all occurences.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_original_text">original_text
+
+</A></STRONG><DD>
+Recover the original text that was <CODE>read()</CODE> in to create this
+object:
+
+
+<P>
+
+<PRE>
+    print &quot;PARSED FROM:\n&quot;, $head-&gt;original_text;    
+</PRE>
+
+<P>
+
+<DT><STRONG><A NAME="item_set_fieldtext">set FIELD,TEXT
+
+</A></STRONG><DD>
+Set the field to [the single occurence given by] the TEXT:
+
+
+<P>
+
+<PRE>
+    # Set the MIME type:
+    $head-&gt;set('content-type', 'text/html');
+    
+The FIELD is automatically coerced to lowercase.
+This method returns the text.
+</PRE>
+
+<P>
+
+<DT><STRONG><A NAME="item_unfold_field">unfold [FIELD]
+
+</A></STRONG><DD>
+Unfold the text of all occurences of the given FIELD. If the FIELD is
+omitted, <EM>all</EM>
+ fields are unfolded.
+
+
+<P>
+
+``Unfolding'' is the act of removing all newlines.
+
+
+<P>
+
+<PRE>
+    $head-&gt;unfold;
+</PRE>
+
+<P>
+
+Currently, returns 1 always.
+
+
+<P>
+
+</DL>
+<P>
+<HR>
+<H2><A NAME="mimespecific_stuff">MIME-specific stuff</A></H2>
+All of the following methods extract information from the following
+structured fields:
+
+
+<P>
+
+<PRE>
+    Content-type
+    Content-transfer-encoding
+    Content-disposition
+</PRE>
+
+<P>
+
+Be aware that they do not just return the raw contents of those fields, and
+in some cases they will fill in sensible (I hope) default values. Use <CODE>get()</CODE> if you need to grab and process the raw field text.
+
+
+<P>
+
+<DL>
+<DT><STRONG><A NAME="item_params_field">params FIELD
+
+</A></STRONG><DD>
+Extract parameter info from a structured field, and return it as a hash
+reference. For example, here is a field with parameters:
+
+
+<P>
+
+<PRE>
+    Content-Type: Message/Partial;
+        number=2; total=3;
+        id=&quot;oc=jpbe0M2Yt4s@thumper.bellcore.com&quot;
+</PRE>
+
+<P>
+
+Here is how you'd extract them:
+
+
+<P>
+
+<PRE>
+    $params = $head-&gt;params('content-type');
+    if ($$params{_} eq 'message/partial') {
+        $number = $$params{'number'};
+        $total  = $$params{'total'};
+        $id     = $$params{'id'};
+    }
+</PRE>
+
+<P>
+
+Like field names, parameter names are coerced to lowercase. The special '_'
+parameter means the default parameter for the field.
+
+
+<P>
+
+<STRONG>WARNING:</STRONG>
+ the syntax is a little different for each field (content-type,
+content-disposition, etc.). I've attempted to come up with a nice, simple
+catch-all solution: it simply stops when it can't match anything else.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_mime_encoding">mime_encoding
+
+</A></STRONG><DD>
+Try real hard to determine the content transfer encoding, which is returned
+as a non-empty string in all-lowercase.
+
+
+<P>
+
+If no encoding could be found, the empty string is returned.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_mime_type">mime_type
+
+</A></STRONG><DD>
+Try real hard to determine the content type, which is returned as <CODE>"$type/$subtype"</CODE> in all-lowercase.
+
+
+<P>
+
+<PRE>
+    ($type, $subtype) = split('/', $head-&gt;mime_type);
+</PRE>
+
+<P>
+
+If <EM>both</EM>
+ the type <EM>and</EM>
+ the subtype are missing, the content-type defaults to <CODE>"text/plain"</CODE>, as per RFC-1521:
+
+
+<P>
+
+<PRE>
+    Default RFC-822 messages are typed by this protocol as plain text in
+    the US-ASCII character set, which can be explicitly specified as
+    &quot;Content-type: text/plain; charset=us-ascii&quot;.  If no Content-Type is
+    specified, this default is assumed.  
+</PRE>
+
+<P>
+
+If <EM>just</EM>
+ the subtype is missing (really a syntax error, but we'll tolerate it, since
+some mailers actually do this), then the subtype defaults to <CODE>"x-subtype-unknown"</CODE>. This may change in the future, since I don't know if this was a really
+horrible idea: unfortunately, there is no standard default subtype, and
+even when a good default can be decided upon, I felt queasy about returning
+the erroneous <CODE>"text"</CODE> as either the legal <CODE>"text/plain"</CODE>
+or the still-illegal <CODE>"text/"</CODE>.
+
+
+<P>
+
+If the content type is present but can't be parsed at all (yow!), the empty
+string is returned.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_multipart_boundary">multipart_boundary
+
+</A></STRONG><DD>
+If this is a header for a multipart message, return the ``encapsulation
+boundary'' used to separate the parts. The boundary is returned exactly as
+given in the <CODE>Content-type:</CODE> field; that is, the leading double-hyphen (<CODE>--</CODE>) is <EM>not</EM>
+ prepended.
+
+
+<P>
+
+(Well, <EM>almost</EM>
+ exactly... from RFC-1521:
+
+
+<P>
+
+<PRE>
+   (If a boundary appears to end with white space, the white space 
+   must be presumed to have been added by a gateway, and must be deleted.)  
+</PRE>
+
+<P>
+
+so we oblige and remove any trailing spaces.)
+
+
+<P>
+
+Returns undef (<STRONG>not</STRONG>
+ the empty string) if either the message is not multipart, if there is no
+specified boundary, or if the boundary is illegal (e.g., if it is empty
+after all trailing whitespace has been removed).
+
+
+<P>
+
+<DT><STRONG><A NAME="item_recommended_filename">recommended_filename
+
+</A></STRONG><DD>
+Return the recommended external filename. This is used when extracting the
+data from the MIME stream.
+
+
+<P>
+
+Returns undef if no filename could be suggested.
+
+
+<P>
+
+</DL>
+<P>
+<HR>
+<H1><A NAME="under_the_hood">UNDER THE HOOD</A></H1>
+See the documentation under MIME::Entity for the rationale behind my
+additions to the MIME family.
+
+
+<P>
+
+<P>
+<HR>
+<H2><A NAME="implementation">Implementation</A></H2>
+Looking at a typical mail message header, it is sooooooo tempting to just
+store the fields as a hash of strings, one string per hash entry.
+Unfortunately, there's the little matter of the <CODE>Received:</CODE> field, which (unlike <CODE>From:</CODE>, <CODE>To:</CODE>, etc.) will often have multiple occurences; e.g.:
+
+
+<P>
+
+<PRE>
+    Received: from gsfc.nasa.gov by eryq.pr.mcs.net  with smtp
+        (Linux Smail3.1.28.1 #5) id m0tStZ7-0007X4C; Thu, 21 Dec 95 16:34 CST
+    Received: from rhine.gsfc.nasa.gov by gsfc.nasa.gov (5.65/Ultrix3.0-C)
+        id AA13596; Thu, 21 Dec 95 17:20:38 -0500
+    Received: (from eryq@localhost) by rhine.gsfc.nasa.gov (8.6.12/8.6.12) 
+        id RAA28069; Thu, 21 Dec 1995 17:27:54 -0500
+    Date: Thu, 21 Dec 1995 17:27:54 -0500
+    From: Eryq &lt;eryq@rhine.gsfc.nasa.gov&gt;
+    Message-Id: &lt;199512212227.RAA28069@rhine.gsfc.nasa.gov&gt;
+    To: eryq@eryq.pr.mcs.net
+    Subject: Stuff and things
+</PRE>
+
+<P>
+
+The <CODE>Received:</CODE> field is used for tracing message routes, and although it's not generally
+used for anything other than human debugging, I didn't want to
+inconvenience anyone who actually wanted to get at that information. I <EM>also</EM>
+ didn't want to make this a special case; after all, who knows what other
+fields could have multiple occurences in the future? So, clearly, multiple
+entries had to somehow be stored multiple times.
+
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="see_also">SEE ALSO</A></H1>
+MIME::Decoder, MIME::Entity, MIME::Head, MIME::Parser.
+
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="author">AUTHOR</A></H1>
+Copyright (c) 1996 by Eryq / <A
+HREF="MAILTO:eryq@rhine.gsfc.nasa.gov">eryq@rhine.gsfc.nasa.gov</A>  
+
+
+<P>
+
+All rights reserved. This program is free software; you can redistribute it
+and/or modify it under the same terms as Perl itself.
+
+
+<P>
+
+More-comprehensive filename extraction by Lee E. Brotzman, Advanced Data
+Solutions.
+
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="version">VERSION</A></H1>
+$Revision: 1.8 $ $Date: 1996/04/30 14:32:00 $
+
+
+<P>
+
+    </BODY>
+
+    </HTML>
