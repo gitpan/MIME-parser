@@ -9,18 +9,17 @@
 <!-- INDEX BEGIN -->
 <UL>
 	<LI><A HREF="#name">NAME</A>
-	<LI><A HREF="#alpharelease_warning">ALPHA-RELEASE WARNING</A>
 	<LI><A HREF="#description">DESCRIPTION</A>
-	<LI><A HREF="#the_nitty_gritty">THE NITTY GRITTY</A>
-	<LI><A HREF="#design_issues">DESIGN ISSUES</A>
-	<UL>
-		<LI><A HREF="#to_subclass_or_not_to_subclass">To subclass or not to subclass?</A>
-		<LI><A HREF="#some_things_just_cant_be_ignored">Some things just can't be ignored</A>
-	</UL>
 	<LI><A HREF="#public_interface">PUBLIC INTERFACE</A>
 	<UL>
 		<LI><A HREF="#constructors_and_converters">Constructors and converters</A>
 		<LI><A HREF="#instance_methods">Instance methods</A>
+	</UL>
+	<LI><A HREF="#under_the_hood">UNDER THE HOOD</A>
+	<LI><A HREF="#design_issues">DESIGN ISSUES</A>
+	<UL>
+		<LI><A HREF="#to_subclass_or_not_to_subclass">To subclass or not to subclass?</A>
+		<LI><A HREF="#some_things_just_cant_be_ignored">Some things just can't be ignored</A>
 	</UL>
 	<LI><A HREF="#see_also">SEE ALSO</A>
 	<LI><A HREF="#author">AUTHOR</A>
@@ -36,10 +35,7 @@ MIME::Entity - class for parsed-and-decoded MIME message
 
 <P>
 
-<P>
-<HR>
-<H1><A NAME="alpharelease_warning">ALPHA-RELEASE WARNING</A></H1>
-<EM><STRONG>This code is in an evaluation phase until 1 August 1996.</STRONG>
+<EM><STRONG>WARNING: This code is in an evaluation phase until 1 August 1996.</STRONG>
 
 Depending on any comments/complaints received before this cutoff date, 
 the interface <STRONG>may</STRONG>
@@ -162,7 +158,137 @@ multi-megabyte tar files.
 </DL>
 <P>
 <HR>
-<H1><A NAME="the_nitty_gritty">THE NITTY GRITTY</A></H1>
+<H1><A NAME="public_interface">PUBLIC INTERFACE</A></H1>
+<P>
+<HR>
+<H2><A NAME="constructors_and_converters">Constructors and converters</A></H2>
+<DL>
+<DT><STRONG><A NAME="item_new">new
+
+</A></STRONG><DD>
+<EM>Class method.</EM>
+
+Create a new, empty MIME entity.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_from_mail_mail">from_mail MAIL
+
+</A></STRONG><DD>
+<EM>Class method.</EM>
+
+Create a new MIME entity from a MAIL::Internet object.
+<STRONG>Currently unimplemented</STRONG>
+. 
+
+
+<P>
+
+<DT><STRONG><A NAME="item_to_mail">to_mail 
+
+</A></STRONG><DD>
+<EM>Instance method.</EM>
+
+Convert a MIME entity to a MAIL::Internet object.
+<STRONG>Currently unimplemented</STRONG>
+. 
+
+
+<P>
+
+</DL>
+<P>
+<HR>
+<H2><A NAME="instance_methods">Instance methods</A></H2>
+<DL>
+<DT><STRONG><A NAME="item_add_part">add_part
+
+</A></STRONG><DD>
+Assuming we are a multipart message, add a body part (a MIME::Entity) to
+the array of body parts. Do <STRONG>not</STRONG>
+ call this for single-part messages; i.e., don't call it unless the header
+has a <CODE>"multipart"</CODE> content-type.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_body_optvalue">body OPTVALUE
+
+</A></STRONG><DD>
+Get or set the path to the file containing the body.
+
+
+<P>
+
+If <CODE>OPTVALUE</CODE>  <EM>is not</EM>
+ given, the current body file is returned. If <CODE>OPTVALUE</CODE>  <EM>is</EM>
+ given, the body file is set to the new value, and the previous value is
+returned.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_head_optvalue">head OPTVALUE
+
+</A></STRONG><DD>
+Get or set the head.
+
+
+<P>
+
+If <CODE>OPTVALUE</CODE>  <EM>is not</EM>
+ given, the current head is returned. If <CODE>OPTVALUE</CODE>  <EM>is</EM>
+ given, the head is set to the new value, and the previous value is
+returned.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_is_multipart">is_multipart
+
+</A></STRONG><DD>
+Does this entity's MIME type indicate that it's a multipart entity? Returns
+undef (false) if the answer couldn't be determined, 0 (false) if it was
+determined to be false, and true otherwise.
+
+
+<P>
+
+Note that this says nothing about whether or not parts were extracted.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_parts">parts
+
+</A></STRONG><DD>
+Return an array of all sub parts (each of which is a MIME::Entity), or the
+empty array if there are none.  
+
+
+<P>
+
+For single-part messages, the empty array will be returned. For multipart
+messages, the preamble and epilogue parts are <EM>not</EM>
+ in the list! If you want them, use <CODE>all_parts()</CODE> instead.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_dump_skeleton_filehandle">dump_skeleton FILEHANDLE
+
+</A></STRONG><DD>
+Dump the skeleton of the entity to the given FILEHANDLE, or to the
+currently-selected one if none given.
+
+
+<P>
+
+</DL>
+<P>
+<HR>
+<H1><A NAME="under_the_hood">UNDER THE HOOD</A></H1>
 A <STRONG>MIME::Entity</STRONG>
  is composed of the following elements:
 
@@ -373,136 +499,6 @@ objects.
 
 <P>
 <HR>
-<H1><A NAME="public_interface">PUBLIC INTERFACE</A></H1>
-<P>
-<HR>
-<H2><A NAME="constructors_and_converters">Constructors and converters</A></H2>
-<DL>
-<DT><STRONG><A NAME="item_new">new
-
-</A></STRONG><DD>
-<EM>Class method.</EM>
-
-Create a new, empty MIME entity.
-
-
-<P>
-
-<DT><STRONG><A NAME="item_from_mail_mail">from_mail MAIL
-
-</A></STRONG><DD>
-<EM>Class method.</EM>
-
-Create a new MIME entity from a MAIL::Internet object.
-<STRONG>Currently unimplemented</STRONG>
-. 
-
-
-<P>
-
-<DT><STRONG><A NAME="item_to_mail">to_mail 
-
-</A></STRONG><DD>
-<EM>Instance method.</EM>
-
-Convert a MIME entity to a MAIL::Internet object.
-<STRONG>Currently unimplemented</STRONG>
-. 
-
-
-<P>
-
-</DL>
-<P>
-<HR>
-<H2><A NAME="instance_methods">Instance methods</A></H2>
-<DL>
-<DT><STRONG><A NAME="item_add_part">add_part
-
-</A></STRONG><DD>
-Assuming we are a multipart message, add a body part (a MIME::Entity) to
-the array of body parts. Do <STRONG>not</STRONG>
- call this for single-part messages; i.e., don't call it unless the header
-has a <CODE>"multipart"</CODE> content-type.
-
-
-<P>
-
-<DT><STRONG><A NAME="item_body_optvalue">body OPTVALUE
-
-</A></STRONG><DD>
-Get or set the path to the file containing the body.
-
-
-<P>
-
-If <CODE>OPTVALUE</CODE>  <EM>is not</EM>
- given, the current body file is returned. If <CODE>OPTVALUE</CODE>  <EM>is</EM>
- given, the body file is set to the new value, and the previous value is
-returned.
-
-
-<P>
-
-<DT><STRONG><A NAME="item_head_optvalue">head OPTVALUE
-
-</A></STRONG><DD>
-Get or set the head.
-
-
-<P>
-
-If <CODE>OPTVALUE</CODE>  <EM>is not</EM>
- given, the current head is returned. If <CODE>OPTVALUE</CODE>  <EM>is</EM>
- given, the head is set to the new value, and the previous value is
-returned.
-
-
-<P>
-
-<DT><STRONG><A NAME="item_is_multipart">is_multipart
-
-</A></STRONG><DD>
-Does this entity's MIME type indicate that it's a multipart entity? Returns
-undef (false) if the answer couldn't be determined, 0 (false) if it was
-determined to be false, and true otherwise.
-
-
-<P>
-
-Note that this says nothing about whether or not parts were extracted.
-
-
-<P>
-
-<DT><STRONG><A NAME="item_parts">parts
-
-</A></STRONG><DD>
-Return an array of all sub parts (each of which is a MIME::Entity), or the
-empty array if there are none.  
-
-
-<P>
-
-For single-part messages, the empty array will be returned. For multipart
-messages, the preamble and epilogue parts are <EM>not</EM>
- in the list! If you want them, use <CODE>all_parts()</CODE> instead.
-
-
-<P>
-
-<DT><STRONG><A NAME="item_dump_skeleton_filehandle">dump_skeleton FILEHANDLE
-
-</A></STRONG><DD>
-Dump the skeleton of the entity to the given FILEHANDLE, or to the
-currently-selected one if none given.
-
-
-<P>
-
-</DL>
-<P>
-<HR>
 <H1><A NAME="see_also">SEE ALSO</A></H1>
 MIME::Decoder, MIME::Entity, MIME::Head, MIME::Parser.
 
@@ -527,7 +523,7 @@ and/or modify it under the same terms as Perl itself.
 <P>
 <HR>
 <H1><A NAME="version">VERSION</A></H1>
-$Revision: 1.7 $ $Date: 1996/04/30 14:32:00 $
+$Revision: 1.10 $ $Date: 1996/06/24 19:02:31 $
 
 
 <P>

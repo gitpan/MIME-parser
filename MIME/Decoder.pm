@@ -5,10 +5,7 @@ package MIME::Decoder;
 
 MIME::Decoder - an object for decoding the body part of a MIME stream
 
-
-=head1 ALPHA-RELEASE WARNING
-
-I<B<This code is in an evaluation phase until 1 August 1996.>
+I<B<WARNING: This code is in an evaluation phase until 1 August 1996.>
 Depending on any comments/complaints received before this cutoff date, 
 the interface B<may> change in a non-backwards-compatible manner.>
 
@@ -28,7 +25,7 @@ You can even create your own subclasses and "install" them so that
 MIME::Decoder will know about them, via the C<install()> method
 
 Want to know if a given encoding is currently supported? 
-Use the C<supported()> class methed.
+Use the C<supported()> class method.
 
 
 =head1 SYNOPSIS
@@ -45,78 +42,6 @@ and write the decoded data to STDOUT:
     $decoder->decode(\*STDIN, \*STDOUT);
 
 The decode() method will always eat up all input to the end of file.
-
-
-=head1 WRITING A DECODER
-
-If you're experimenting with your own encodings, you'll probably want
-to write a decoder.  Here are the basics:
-
-=over 4
-
-=item 1.
-
-Create a module, like "MyDecoder::", for your decoder.
-Declare it to be a subclass of MIME::Decoder.
-
-=item 2.
-
-Create the instance method C<MyDecoder::decode_it()>, as follows:
-
-Your method should take as arguments 
-the C<$self> object (natch),
-a filehandle opened for input, called C<$in>, and
-a filehandle opened for output, called C<$out>.
-
-Your method should read from the input filehandle, decode this input, 
-and print its decoded output to the C<$out> filehandle.  You may
-do this however you see fit, so long as the end result is the same.
-
-Your method must return either C<undef> (to indicate failure),
-or C<1> (to indicate success).
-
-=item 3.
-
-In your application program, activate your decoder for one or
-more encodings like this:
-
-    require MyDecoder;
-
-    install MyDecoder "7bit";        # use MyDecoder to decode "7bit"    
-    install MyDecoder "x-foo";       # also, use MyDecoder to decode "x-foo"
-
-=back
-
-To illustrate, here's a custom decoder class for the C<base64> encoding:
-
-    package MyBase64Decoder;
-
-    @ISA = qw(MIME::Decoder);    
-    use MIME::Decoder;
-    use MIME::Base64;
-    
-    # decode_it - the private decoding method
-    sub decode_it {
-        my ($self, $in, $out) = @_;
-
-        while (<$in>) {
-            my $decoded = decode_base64($_);
-	    print $out $decoded;
-        }
-        1;
-    }
-
-That's it.
-
-The task was pretty simple because the C<"base64"> encoding can easily 
-and efficiently be parsed line-by-line... as can C<"quoted-printable">,
-and even C<"7bit"> and C<"8bit"> (since all these encodings guarantee 
-short lines, with a max of 1000 characters).
-The good news is: it is very likely that it will be similarly-easy to 
-write a MIME::Decoder for any future standard encodings.
-
-The C<"binary"> decoder, however, really required block reads and writes:
-see L<"MIME::Decoder::Binary"> for details.
 
 =cut
 
@@ -143,8 +68,10 @@ see L<"MIME::Decoder::Binary"> for details.
     'quoted-printable' => 'MIME::Decoder::QuotedPrint',
 );
 
-# The package version, in 1.23 style:
-$VERSION = sprintf("%d.%02d", q$Revision: 1.7 $ =~ /(\d+)\.(\d+)/);
+
+# The package version, both in 1.23 style *and* usable by MakeMaker:
+$VERSION = undef;
+( $VERSION ) = '$Revision: 1.9 $ ' =~ /\$Revision:\s+([^\s]+)/;
 
 
 
@@ -453,12 +380,85 @@ sub decode_it {
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
+=head1 WRITING A DECODER
+
+If you're experimenting with your own encodings, you'll probably want
+to write a decoder.  Here are the basics:
+
+=over 4
+
+=item 1.
+
+Create a module, like "MyDecoder::", for your decoder.
+Declare it to be a subclass of MIME::Decoder.
+
+=item 2.
+
+Create the instance method C<MyDecoder::decode_it()>, as follows:
+
+Your method should take as arguments 
+the C<$self> object (natch),
+a filehandle opened for input, called C<$in>, and
+a filehandle opened for output, called C<$out>.
+
+Your method should read from the input filehandle, decode this input, 
+and print its decoded output to the C<$out> filehandle.  You may
+do this however you see fit, so long as the end result is the same.
+
+Your method must return either C<undef> (to indicate failure),
+or C<1> (to indicate success).
+
+=item 3.
+
+In your application program, activate your decoder for one or
+more encodings like this:
+
+    require MyDecoder;
+
+    install MyDecoder "7bit";        # use MyDecoder to decode "7bit"    
+    install MyDecoder "x-foo";       # also, use MyDecoder to decode "x-foo"
+
+=back
+
+To illustrate, here's a custom decoder class for the C<base64> encoding:
+
+    package MyBase64Decoder;
+
+    @ISA = qw(MIME::Decoder);    
+    use MIME::Decoder;
+    use MIME::Base64;
+    
+    # decode_it - the private decoding method
+    sub decode_it {
+        my ($self, $in, $out) = @_;
+
+        while (<$in>) {
+            my $decoded = decode_base64($_);
+	    print $out $decoded;
+        }
+        1;
+    }
+
+That's it.
+
+The task was pretty simple because the C<"base64"> encoding can easily 
+and efficiently be parsed line-by-line... as can C<"quoted-printable">,
+and even C<"7bit"> and C<"8bit"> (since all these encodings guarantee 
+short lines, with a max of 1000 characters).
+The good news is: it is very likely that it will be similarly-easy to 
+write a MIME::Decoder for any future standard encodings.
+
+The C<"binary"> decoder, however, really required block reads and writes:
+see L<"MIME::Decoder::Binary"> for details.
+
+
 =head1 SEE ALSO
 
 MIME::Decoder,
 MIME::Entity,
 MIME::Head, 
 MIME::Parser.
+
 
 =head1 AUTHOR
 
@@ -469,7 +469,7 @@ it and/or modify it under the same terms as Perl itself.
 
 =head1 VERSION
 
-$Revision: 1.7 $ $Date: 1996/06/06 23:30:38 $
+$Revision: 1.9 $ $Date: 1996/06/24 19:02:31 $
 
 =cut
 

@@ -5,10 +5,7 @@ package MIME::Entity;
 
 MIME::Entity - class for parsed-and-decoded MIME message
 
-
-=head1 ALPHA-RELEASE WARNING
-
-I<B<This code is in an evaluation phase until 1 August 1996.>
+I<B<WARNING: This code is in an evaluation phase until 1 August 1996.>
 Depending on any comments/complaints received before this cutoff date, 
 the interface B<may> change in a non-backwards-compatible manner.>
 
@@ -74,158 +71,6 @@ multi-megabyte tar files.
 =back
 
 
-=head1 THE NITTY GRITTY
-
-A B<MIME::Entity> is composed of the following elements:
-
-=over 4
-
-=item *
-
-A I<head>, which is a reference to a MIME::Head object.
-
-=item *
-
-A I<body>, which (currently) is a path to a file containing the decoded
-body.  It is possible for a multipart entity to have a body; this simply
-means that the body file contains a MIME message that hasn't yet
-been split into its component parts.
-
-=item *
-
-A list of zero or more I<parts>, each of which is a MIME::Entity 
-object.  The number of parts will only be nonzero if the content-type 
-is some subtype of C<"multipart">.
-
-=back
-
-
-
-=head1 DESIGN ISSUES
-
-=head2 To subclass or not to subclass?
-
-When I rewrote this module for the CPAN, I agonized for a long
-time about whether or not it really should just be a subclass
-of B<Mail::Internet> (or the experimental B<Mail::MIME>).  
-There were plusses:
-
-=over 4
-
-=item *
-
-Software reuse.
-
-=item *
-
-Inheritance of the mail-sending utilities.
-
-=item *
-
-Elimination and stamping out of repetitive redundancies.
-
-=back
-
-And, unfortunately, minuses:
-
-=over 4
-
-=item *
-
-The Mail::Internet model of messages as being short enough to fit into
-in-core arrays is excellent for most email applications; however, it
-seemed ill-suited for generic MIME applications, where MIME streams 
-could be megabytes long.
-
-=item *
-
-The current implementation of Mail::Internet (version 1.17) is excellent 
-for certain kinds of header manipulation; however, the get() method 
-(for retrieveing a field's value) does a brute-force, regexp-based search 
-through a linear array of the field values - worse, with a 
-dynamically-compiled search pattern.  Even given small headers, I was 
-simply too uncomfortable with this approach for the MIME header applications,
-which could be fairly get()-intensive.
-
-=item *
-
-In my heart of hearts, I honestly feel that the head should be encapsulated
-as a first-class object, separate from any attached body.  Notice that 
-this approach allows the head to be folded into the entity in the future;
-that is:
-
-    $entity->head->get('subject');
-
-...can work even if C<MIME::Head> objects are eliminated, and 
-C<MIME::Entity> objects become the ones that handle the C<get()> 
-method.   To do this, we'd simply define C<MIME::Entity::head()> to return
-the "self" object, which would "pretend" to be the "header" object.  
-Like this:
-
-    sub head { $_[0] }
-
-=item *
-
-While MIME streams follow RFC-822 syntax, they are not, strictly speaking, 
-limited to email messages: HTTP is an excellent example of non-email-based
-MIME.  So the inheritance from Mail::Internet was not without question
-anyway.
-
-=back
-
-
-B<The compromise.>  Currently, MIME::Head is its own module.  However:
-
-=over 4
-
-=item *
-
-When a MIME::Head is constructed using C<read()> (or C<from_file()>), 
-the original parsed header is stored, in all its flat-text glory,
-in the MIME::Head object, and may be recovered via the C<original_text()>
-method.
-
-=item *
-
-The conversion methods C<from_mail()> and C<to_mail()> are provided in 
-MIME::Entity class.
-
-=back
-
-=head2 Some things just can't be ignored
-
-In multipart messages, the I<"preamble"> is the portion that precedes
-the first encapsulation boundary, and the I<"epilogue"> is the portion
-that follows the last encapsulation boundary.
-
-According to RFC-1521:
-
-    There appears to be room for additional information prior to the
-    first encapsulation boundary and following the final boundary.  These
-    areas should generally be left blank, and implementations must ignore
-    anything that appears before the first boundary or after the last
-    one.
-
-    NOTE: These "preamble" and "epilogue" areas are generally not used
-    because of the lack of proper typing of these parts and the lack
-    of clear semantics for handling these areas at gateways,
-    particularly X.400 gateways.  However, rather than leaving the
-    preamble area blank, many MIME implementations have found this to
-    be a convenient place to insert an explanatory note for recipients
-    who read the message with pre-MIME software, since such notes will
-    be ignored by MIME-compliant software.
-
-In the world of standards-and-practices, that's the standard.  
-Now for the practice: 
-
-I<Some MIME mailers may incorrectly put a "part" in the preamble>,
-Since we have to parse over the stuff I<anyway>, in the future I
-will allow the parser option of creating special MIME::Entity objects 
-for the preamble and epilogue, with bogus MIME::Head objects.
-
-
-
-
 =head1 PUBLIC INTERFACE
 
 =cut
@@ -241,9 +86,9 @@ require MIME::Head;
 #
 #------------------------------
 
-# The package version, in 1.23 style:
-$VERSION = sprintf("%d.%02d", q$Revision: 1.7 $ =~ /(\d+)\.(\d+)/);
-
+# The package version, both in 1.23 style *and* usable by MakeMaker:
+$VERSION = undef;
+( $VERSION ) = '$Revision: 1.10 $ ' =~ /\$Revision:\s+([^\s]+)/;
 
 #------------------------------------------------------------
 # error -- private: register unhappiness
@@ -363,7 +208,7 @@ sub add_part {
 #
 # =cut
 
-sub parts {
+sub all_parts {
     my $self = shift;
     my @all = ();
     push @all, $self->{Preamble} if $self->{Preamble};
@@ -520,6 +365,155 @@ sub dump_skeleton {
 
 =back
 
+=head1 UNDER THE HOOD
+
+A B<MIME::Entity> is composed of the following elements:
+
+=over 4
+
+=item *
+
+A I<head>, which is a reference to a MIME::Head object.
+
+=item *
+
+A I<body>, which (currently) is a path to a file containing the decoded
+body.  It is possible for a multipart entity to have a body; this simply
+means that the body file contains a MIME message that hasn't yet
+been split into its component parts.
+
+=item *
+
+A list of zero or more I<parts>, each of which is a MIME::Entity 
+object.  The number of parts will only be nonzero if the content-type 
+is some subtype of C<"multipart">.
+
+=back
+
+
+=head1 DESIGN ISSUES
+
+=head2 To subclass or not to subclass?
+
+When I rewrote this module for the CPAN, I agonized for a long
+time about whether or not it really should just be a subclass
+of B<Mail::Internet> (or the experimental B<Mail::MIME>).  
+There were plusses:
+
+=over 4
+
+=item *
+
+Software reuse.
+
+=item *
+
+Inheritance of the mail-sending utilities.
+
+=item *
+
+Elimination and stamping out of repetitive redundancies.
+
+=back
+
+And, unfortunately, minuses:
+
+=over 4
+
+=item *
+
+The Mail::Internet model of messages as being short enough to fit into
+in-core arrays is excellent for most email applications; however, it
+seemed ill-suited for generic MIME applications, where MIME streams 
+could be megabytes long.
+
+=item *
+
+The current implementation of Mail::Internet (version 1.17) is excellent 
+for certain kinds of header manipulation; however, the get() method 
+(for retrieveing a field's value) does a brute-force, regexp-based search 
+through a linear array of the field values - worse, with a 
+dynamically-compiled search pattern.  Even given small headers, I was 
+simply too uncomfortable with this approach for the MIME header applications,
+which could be fairly get()-intensive.
+
+=item *
+
+In my heart of hearts, I honestly feel that the head should be encapsulated
+as a first-class object, separate from any attached body.  Notice that 
+this approach allows the head to be folded into the entity in the future;
+that is:
+
+    $entity->head->get('subject');
+
+...can work even if C<MIME::Head> objects are eliminated, and 
+C<MIME::Entity> objects become the ones that handle the C<get()> 
+method.   To do this, we'd simply define C<MIME::Entity::head()> to return
+the "self" object, which would "pretend" to be the "header" object.  
+Like this:
+
+    sub head { $_[0] }
+
+=item *
+
+While MIME streams follow RFC-822 syntax, they are not, strictly speaking, 
+limited to email messages: HTTP is an excellent example of non-email-based
+MIME.  So the inheritance from Mail::Internet was not without question
+anyway.
+
+=back
+
+
+B<The compromise.>  Currently, MIME::Head is its own module.  However:
+
+=over 4
+
+=item *
+
+When a MIME::Head is constructed using C<read()> (or C<from_file()>), 
+the original parsed header is stored, in all its flat-text glory,
+in the MIME::Head object, and may be recovered via the C<original_text()>
+method.
+
+=item *
+
+The conversion methods C<from_mail()> and C<to_mail()> are provided in 
+MIME::Entity class.
+
+=back
+
+=head2 Some things just can't be ignored
+
+In multipart messages, the I<"preamble"> is the portion that precedes
+the first encapsulation boundary, and the I<"epilogue"> is the portion
+that follows the last encapsulation boundary.
+
+According to RFC-1521:
+
+    There appears to be room for additional information prior to the
+    first encapsulation boundary and following the final boundary.  These
+    areas should generally be left blank, and implementations must ignore
+    anything that appears before the first boundary or after the last
+    one.
+
+    NOTE: These "preamble" and "epilogue" areas are generally not used
+    because of the lack of proper typing of these parts and the lack
+    of clear semantics for handling these areas at gateways,
+    particularly X.400 gateways.  However, rather than leaving the
+    preamble area blank, many MIME implementations have found this to
+    be a convenient place to insert an explanatory note for recipients
+    who read the message with pre-MIME software, since such notes will
+    be ignored by MIME-compliant software.
+
+In the world of standards-and-practices, that's the standard.  
+Now for the practice: 
+
+I<Some MIME mailers may incorrectly put a "part" in the preamble>,
+Since we have to parse over the stuff I<anyway>, in the future I
+will allow the parser option of creating special MIME::Entity objects 
+for the preamble and epilogue, with bogus MIME::Head objects.
+
+
 =head1 SEE ALSO
 
 MIME::Decoder,
@@ -536,7 +530,7 @@ it and/or modify it under the same terms as Perl itself.
 
 =head1 VERSION
 
-$Revision: 1.7 $ $Date: 1996/04/30 14:32:00 $
+$Revision: 1.10 $ $Date: 1996/06/24 19:02:31 $
 
 =cut
 

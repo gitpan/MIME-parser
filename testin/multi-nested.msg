@@ -36,8 +36,8 @@ A one-line preamble for the inner multipart message.
 --unique-boundary-2
 Content-Type: image/gif
 Content-Transfer-Encoding: base64
-Content-Disposition: inline; filename="3d-compress.gif"
-Subject: Part 1 of the inner message is a GIF, "3d-compress.gif"
+Content-Disposition: inline; filename="3d-vise.gif"
+Subject: Part 1 of the inner message is a GIF, "3d-vise.gif"
 
 R0lGODdhKAAoAOMAAAAAAAAAgB6Q/y9PT25ubnCAkKBSLb6+vufn5/Xes/+lAP/6zQAAAAAA
 AAAAAAAAACwAAAAAKAAoAAAE/hDJSau9eJLMOyYbcoxkaZ5oCkoH6L5wLMfiWqd4btZhmxbA
@@ -73,7 +73,7 @@ This is <bold>part 4 of the outer message</bold>
 Isn't it <bigger><bigger>cool?</bigger></bigger>
 
 --unique-boundary-1
-Content-Type: message/rfc822
+Content-Type: message/rfc822; name="/evil/filename";
 
 From: (mailbox in US-ASCII)
 To: (address in US-ASCII)
@@ -86,3 +86,4 @@ Part 5 of the outer message is itself an RFC822 message!
 --unique-boundary-1--
 
 The epilogue for the outer message.
+

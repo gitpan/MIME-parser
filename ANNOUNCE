@@ -1,0 +1,48 @@
+
+The latest release of the "MIME-parser" package has been uploaded to the 
+CPAN under my author id (ERYQ) and name (Eryq). 
+
+Current version:	1.11
+
+------------------------------------------------------------
+
+NAME
+
+    MIME-parser - family of MIME:: modules for parsing MIME messages
+
+DESCRIPTION
+
+    MIME-parser is a collection of Perl5 MIME:: modules for parsing 
+    and decoding single- or multipart (even nested multipart!) MIME 
+    messages. 
+
+SYNOPSIS
+
+    You start by creating an instance of MIME::Parser, and setting up
+    certain parsing parameters: what directory to save extracted files 
+    to, how to name the files, etc.
+
+    You then give that instance a readable filehandle on which waits a
+    MIME message.  If all goes well, you will get back a MIME::Entity
+    object, consisting of a MIME::Head (which holds the MIME header 
+    data) and the name of the file in which the (decoded) body has been 
+    stored.
+
+    If the original message was a multipart document, the MIME::Entity
+    object will have a non-empty list of "parts", each of which is in 
+    turn a MIME::Entity (which might also be a multipart entity, etc, 
+    etc...).
+
+    Internally, MIME::Parser asks for instances of MIME::Decoder
+    whenever it needs to decode an encoded file.  MIME::Decoder has
+    a mapping from supported encodings (e.g., 'base64') to classes
+    whose instances can decode them.  You can add to this mapping 
+    to try out new/experimental encodings.  You can also use 
+    MIME::Decoder by itself.
+
+AUTHOR
+
+    Eryq, eryq@rhine.gsfc.nasa.gov
+    28 April 1996
+
+

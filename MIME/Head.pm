@@ -5,10 +5,7 @@ package MIME::Head;
 
 MIME::Head - MIME message header
 
-
-=head1 ALPHA-RELEASE WARNING
-
-I<B<This code is in an evaluation phase until 1 August 1996.>
+I<B<WARNING: This code is in an evaluation phase until 1 August 1996.>
 Depending on any comments/complaints received before this cutoff date, 
 the interface B<may> change in a non-backwards-compatible manner.>
 
@@ -74,27 +71,17 @@ To extract parameters from certain structured fields, as a hash reference:
 
 To get certain commonly-used MIME information:
 
-    $mime_type = $head->mime_type;
+    # The content type (e.g., "text/html"):
+    $mime_type     = $head->mime_type;
     
+    # The content transfer encoding (e.g., "quoted-printable"):
     $mime_encoding = $head->mime_encoding;
     
-    $file_name = $head->recommended_filename;
+    # The recommended filename (e.g., "choosy-moms-choose.gif"):
+    $file_name     = $head->recommended_filename;
     
-    $boundary = $head->multipart_boundary;
-
-=head1 COMPATIBILITY TWEAKS
-
-The parser may be tweaked so that any line in the header stream that 
-begins with C<"From "> will be either B<ignored>, flagged as an 
-B<error>, or B<coerced> into the special field C<"Mail-from:"> 
-(the default; this approach was inspired by Emacs's "Babyl" format).
-Though not valid for a MIME header, this will provide compatibility 
-with some Unix mail messages. Just do this:
-
-    MIME::Head->tweak_FROM_parsing($choice)
-
-Where C<$choice> is one of C<IGNORE>, C<ERROR>, or C<COERCE>.
-
+    # The boundary text, for multipart messages:
+    $boundary      = $head->multipart_boundary;
 
 =head1 PUBLIC INTERFACE
 
@@ -110,8 +97,10 @@ Where C<$choice> is one of C<IGNORE>, C<ERROR>, or C<COERCE>.
 #
 #------------------------------
 
-# The package version, in 1.23 style:
-$VERSION = sprintf("%d.%02d", q$Revision: 1.9 $ =~ /(\d+)\.(\d+)/);
+# The package version, both in 1.23 style *and* usable by MakeMaker:
+$VERSION = undef;
+( $VERSION ) = '$Revision: 1.16 $ ' =~ /\$Revision:\s+([^\s]+)/;
+
 
 # Lifted from Mail::Internet...
 # Pattern to match an RFC-822 field name:
@@ -226,73 +215,6 @@ sub from_file {
 }
 
 #------------------------------------------------------------
-# read
-#------------------------------------------------------------
-
-=item read FILEHANDLE
-
-I<Class or instance method>.
-This constructs a header object by reading it in from a FILEHANDLE,
-until either a blank line or an end-of-stream is encountered.  
-A syntax error will also halt processing.
-
-Supply this routine with a reference to a filehandle glob;
-e.g., C<\*STDIN>:
-
-    # Create a new header by parsing in STDIN:
-    my $head = MIME::Head->read(\*STDIN);
-
-Since this method can function as either a class constructor I<or> 
-an instance initializer, the above is exactly equivalent to:
-
-    # Create a new header by parsing in STDIN:
-    my $head = MIME::Head->new->read(\*STDIN);
-
-Except that you should probably use th first form.
-On success, the object will be returned; on failure, the undefined value.
-
-=cut
-
-sub read {
-    my ($self, $fh) = @_;      # at this point, $self is instance or class!
-    my ($lastparam, $value);
-
-    # If invoked as a class method, create a new object and adjust $self so
-    #  that we behave like an instance method sent to a brand new instance:
-    ref($self) or $self = $self->new;
-    
-    # Parse:
-    while (<$fh>) {
-	$self->{Orig} .= $_;           # save original text
-	chomp;
-	$DEBUG and print STDERR "hdr: <$_>\n";
-	last if ($_ eq '');     # done if line is empty
-
-	if (/^From /) {                      # special "From " line:
-	    if ($FROM_PARSING eq 'COERCE') {
-		$self->add(($lastparam = 'mail-from'), $_);
-	    }
-	    elsif ($FROM_PARSING eq 'IGNORE') {
-		next;
-	    }
-	    else {
-		return error "unadorned 'From ' refused: <$_>";
-	    }
-	}
-	elsif (/^($FIELDNAME): /o) {         # first line of a field
-	    $self->add(($lastparam = lc($1)), $');
-	}
-	elsif (/^\s/) {                      # continuation line of a field
-	    $self->add_text($lastparam, "\n$&$'");
-	}
-	else {                               # garbage: stop:
-	    return error "bad email header line: <$_>";
-	}
-    }
-    $self;     # done!
-}
-
-#------------------------------------------------------------
 # print
 #------------------------------------------------------------
 
@@ -324,6 +246,73 @@ sub print {
     1;
 }
 
+#------------------------------------------------------------
+# read
+#------------------------------------------------------------
+
+=item read FILEHANDLE
+
+I<Class or instance method>.
+This constructs a header object by reading it in from a FILEHANDLE,
+until either a blank line or an end-of-stream is encountered.  
+A syntax error will also halt processing.
+
+Supply this routine with a reference to a filehandle glob;
+e.g., C<\*STDIN>:
+
+    # Create a new header by parsing in STDIN:
+    my $head = MIME::Head->read(\*STDIN);
+
+Since this method can function as either a class constructor I<or> 
+an instance initializer, the above is exactly equivalent to:
+
+    # Create a new header by parsing in STDIN:
+    my $head = MIME::Head->new->read(\*STDIN);
+
+Except that you should probably use the first form.
+On success, the object will be returned; on failure, the undefined value.
+
+=cut
+
+sub read {
+    my ($self, $fh) = @_;      # at this point, $self is instance or class!
+    my ($lastparam, $value);
+
+    # If invoked as a class method, create a new object and adjust $self so
+    #  that we behave like an instance method sent to a brand new instance:
+    ref($self) or $self = $self->new;
+    
+    # Parse:
+    while (<$fh>) {
+	$self->{Orig} .= $_;           # save original text
+	s/\r?\n$//;                    # more robust than chomp
+	$DEBUG and print STDERR "hdr: <$_>\n";
+	last if ($_ eq '');     # done if line is empty
+
+	if (/^From /) {                      # special "From " line:
+	    if ($FROM_PARSING eq 'COERCE') {
+		$self->add(($lastparam = 'mail-from'), $_);
+	    }
+	    elsif ($FROM_PARSING eq 'IGNORE') {
+		next;
+	    }
+	    else {
+		return error "unadorned 'From ' refused: <$_>";
+	    }
+	}
+	elsif (/^($FIELDNAME): /o) {         # first line of a field
+	    $self->add(($lastparam = lc($1)), $');
+	}
+	elsif (/^\s/) {                      # continuation line of a field
+	    $self->add_text($lastparam, "\n$&$'");
+	}
+	else {                               # garbage: stop:
+	    return error "bad email header line: <$_>";
+	}
+    }
+    $self;     # done!
+}
+
 
 
 #------------------------------
@@ -336,8 +325,6 @@ B<NOTE:> this interface is not as extensive as that of MIME::Internet;
 however, I have provided a set of methods that I can guarantee are 
 supportable across any changes to the internal implementation of this
 class.
-
-Anything that you can't do here, you'll have to do 
 
 =over 4
 
@@ -530,6 +517,7 @@ B<zero> for the first, and B<-1> for the last.
 
 sub get {
     my ($self, $field, $occur) = @_;
+    $field = lc($field);
     defined($occur) or $occur = 0;
 
     $self->exists($field) or return '';          # empty if doesn't exist
@@ -651,7 +639,7 @@ sub unfold {
 
 =back
 
-=head2 MIME-specific stuff
+=head2 MIME-specific methods
 
 All of the following methods extract information from the following 
 structured fields:
@@ -877,12 +865,161 @@ sub recommended_filename {
 
 =back
 
-=head1 UNDER THE HOOD
+=head2 Compatibility tweaks
+
+=over 4
+
+=cut
+
+#------------------------------------------------------------
+# tweak_FROM_parsing
+#------------------------------------------------------------
+
+=item tweak_FROM_parsing CHOICE
+
+I<Class method.>
+The parser may be tweaked so that any line in the header stream that 
+begins with C<"From "> will be either B<ignored>, flagged as an 
+B<error>, or B<coerced> into the special field C<"Mail-from:"> 
+(the default; this approach was inspired by Emacs's "Babyl" format).
+Though not valid for a MIME header, this will provide compatibility 
+with some Unix mail messages. Just do this:
+
+    MIME::Head->tweak_FROM_parsing($choice)
+
+Where C<$choice> is one of C<'IGNORE'>, C<'ERROR'>, or C<'COERCE'>.
+
+=cut
+
+sub tweak_FROM_parsing {
+    my $choice = uc(shift);
+    $choice =~ /^(IGNORE|ERROR|COERCE)$/ 
+	or die "bad FROM-parsing tweak: '$choice'";
+    $FROM_PARSING = $choice;
+}
+
+
+#------------------------------------------------------------
+
+=back
+
+=head1 DESIGN ISSUES
+
+
+=head2 Why have separate objects for the head and the entity?
 
 See the documentation under MIME::Entity for the rationale behind
-my additions to the MIME family.
+this decision.
 
-=head2 Implementation
+
+=head2 Why assume that MIME headers are email headers?
+
+I quote from Achim Bohnet, who gave feedback on v.1.9 (I think
+he's using the word I<header> where I would use I<field>; e.g.,
+to refer to "Subject:", "Content-type:", etc.):
+
+    There is also IMHO no requirement [for] MIME::Heads to look 
+    like [email] headers; so to speak, the MIME::Head [simply stores] 
+    the attributes of a complex object, e.g.:
+
+        new MIME::Head type => "text/plain",
+                       charset => ...,
+                       disposition => ..., ... ;
+
+See the next question for an answer to this one.  
+
+=head2 Why is MIME::Head so complex, and yet lacking in composition methods?
+
+Sigh.
+
+I have often wished that the original RFC-822 designers had taken
+a different approach, and not given every other field its own special
+grammar: read RFC-822 to see what I mean.  As I understand it, in Heaven,
+all mail message headers have a very simple syntax that encodes
+arbitrarily-nested objects; a consistent, generic representation for 
+exchanging OO data structures.
+
+But we live in an imperfect world, where there's nonsense like this
+to put up with:
+
+    From: Yakko Warner <yakko@tower.wb.com>
+    Subject: Hello, nurse!
+    Received: from gsfc.nasa.gov by eryq.pr.mcs.net  with smtp
+        (Linux Smail3.1.28.1 #5) id m0tStZ7-0007X4C; Thu, 21 Dec 95 16:34 CST
+    Received: from rhine.gsfc.nasa.gov by gsfc.nasa.gov (5.65/Ultrix3.0-C)
+        id AA13596; Thu, 21 Dec 95 17:20:38 -0500
+    Content-type: text/html; charset=US-ASCII; 
+        name="nurse.html"
+
+I quote from Achim Bohnet, who gave feedback on v.1.9 (I think
+he's using the word I<header> where I would use I<field>; e.g.,
+to refer to "Subject:", "Content-type:", etc.):
+
+    MIME::Head is too big. A better approach IMHO would be to 
+    have a general header class that knows about allowed characters, 
+    line length, and some (formatting) output routines.  There 
+    should be other classes that handle special headers and that 
+    are aware of the semantics/syntax of [those] headers...
+
+        From, to, reply-to, message-id, in-reply-to, x-face ...
+
+    MIME::Head should only handle MIME specific headers.  
+
+As he describes, each kind of field really merits its own small 
+class (e.g, Mail::Field::Subject, Mail::Field::MessageId, Mail::Field::XFace,
+etc.), each of which provides a from_field() method for parsing 
+field data I<into> a class object, and a to_field() method for 
+generating that field I<from> a class object.
+
+I kind of like the elegance of this approach.  We could then
+have a generic Mail::Head class, instances of which would consist 
+simply of one or more instances of subclasses of a generic Mail::Field 
+class.  Unrecognized fields would be represented as instances of Mail::Field 
+by default.
+
+There would be a MIME::Field class, with subclasses like
+MIME::Field::ContentType that would allow us to get fields like this:
+
+   $type    = $head->field('content-type')->type;
+   $subtype = $head->field('content-type')->subtype;
+   $charset = $head->field('content-type')->charset;
+
+And set fields like this:
+
+   $head->field('content-type')->type('text');
+   $head->field('content-type')->subtype('html');
+   $head->field('content-type')->charset('us-ascii');
+
+And, with that same MIME::Head object, get at other fields, like:
+
+   $subject     = $head->field('subject')->text;  # just the flat text
+   $sender_name = $head->field('from')->name;     # e.g., Yakko Warner
+   $sender_addr = $head->field('from')->addr;     # e.g., yakko@tower.wb.com
+
+So why a special MIME::Head subclass of Mail::Head?  Why, to enable
+us to add MIME-specific wrappers, like this:
+
+   package MIME::Head;
+   @ISA = qw(Mail::Head);
+   
+   sub recommended_filename {
+       my $self = shift;
+       my $try;
+       
+       # First, try to get it from the content-disposition:
+       ($try = $self->field('content-disposition')->filename) and return $try;
+       
+       # Next, try to get it from the content-type:
+       ($try = $self->field('content-type')->name) and return $try;
+       
+       # Give up:
+       undef;
+   }
+
+
+=head2 Why all this "occurence" jazz?  Isn't every field unique?
+
+Aaaaaaaaaahh....no.
 
 Looking at a typical mail message header, it is sooooooo tempting to just
 store the fields as a hash of strings, one string per hash entry.  
@@ -905,10 +1042,12 @@ occurences; e.g.:
 The C<Received:> field is used for tracing message routes, and although
 it's not generally used for anything other than human debugging, I
 didn't want to inconvenience anyone who actually wanted to get at that
-information.  I I<also> didn't want to make this a special case; after
-all, who knows what other fields could have multiple occurences in the
+information.  
+
+I I<also> didn't want to make this a special case; after all, who
+knows what B<other> fields could have multiple occurences in the
 future?  So, clearly, multiple entries had to somehow be stored
-multiple times.
+multiple times... and the different occurences had to be retrievable.
 
 
 =head1 SEE ALSO
@@ -925,18 +1064,18 @@ Copyright (c) 1996 by Eryq / eryq@rhine.gsfc.nasa.gov
 All rights reserved.  This program is free software; you can redistribute 
 it and/or modify it under the same terms as Perl itself.
 
-More-comprehensive filename extraction by Lee E. Brotzman, 
-Advanced Data Solutions.
+The more-comprehensive filename extraction is courtesy of 
+Lee E. Brotzman, Advanced Data Solutions.
 
 =head1 VERSION
 
-$Revision: 1.9 $ $Date: 1996/06/06 23:27:02 $
+$Revision: 1.16 $ $Date: 1996/06/19 04:04:35 $
 
 =cut
 
 
 #------------------------------------------------------------
-# Execute simple test if run as a script...
+# Execute simple test if run as a script.
 #------------------------------------------------------------
 { 
   package main; no strict;
@@ -946,6 +1085,7 @@ $Revision: 1.9 $ $Date: 1996/06/06 23:27:02 $
 1;           # end the module
 __END__
 
+# Pick up other MIME stuff, just in case...
 BEGIN { unshift @INC, "./etc" }
 
 my $head;

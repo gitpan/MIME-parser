@@ -1,5 +1,5 @@
 ****
-**** MIME-parser-1.7 has been uploaded to the CPAN under my author
+**** MIME-parser has been uploaded to the CPAN under my author
 **** id (ERYQ) and name (Eryq).
 ****
 
@@ -57,11 +57,11 @@ MODULE SPECIFICATIONS
 CONTENTS OF THE PACKAGE
 
     ./MIME/*.pm         the MIME-parser classes
-    ./Makefile          the distribution makefile
+    ./Makefile.PL       the input to MakeMaker
     ./COPYING           terms and conditions for copying/using the software
     ./README            this file
     ./docs/             HTMLized documentation
-    ./etc/              convenient copies of other modules you'll need
+    ./etc/              convenient copies of other modules you may need
     ./testin/           files you can use for testing (as in "make test")
     ./testout/          the output of "make test"
 
@@ -78,16 +78,35 @@ REQUIREMENTS
 
 INSTALLATION
 
-    1. Gunzip and de-tar the distribution.
+    Pretty simple:
 
-    2. Edit the Makefile (mostly, to tell it where to put the new modules).
- 
-    3. Issue the following commands:
- 
-          make test
-          make install
+        1. Gunzip and de-tar the distribution, and cd to the top level.
+        2. Type:      perl Makefile.PL
+        3. Type:      make                    # this step is optional
+        4. Type:      make test               # this step is optional
+        5. Type:      make install
+
+    Other interesting targets in the Makefile are:
+
+        make config     # to check if the Makefile is up-to-date
+        make clean      # delete local temp files (Makefile gets renamed)
+        make realclean  # delete derived files (including ./blib)
+
  
 CHANGE LOG
+	1.11	Converted over to using Makefile.PL.  Thanks to
+		Andreas Koenig for the much-needed kick in the pants...
+
+		Added t/*.t files for testing.  Eeeeeeeeeeeh...it's a start.
+
+		Fixed bug in default parsing routine for generating 
+		output paths; it was warning about evil filenames if
+		there simply *were* no recommended filenames.  D'oh!
+
+		Fixed redefined parts() method in Entity.
+
+		Fixed bugs in Head where field name wasn't being case folded.
+
 	1.10	A typo was causing the epilogue of an inner multipart
 		message to be swallowed to the end of the OUTER multipart
 		message; this has now been fixed.  Thanks to Starovoitov 
@@ -116,7 +135,7 @@ TERMS AND CONDITIONS
     software; you can redistribute it and/or modify it under the same terms as
     Perl itself. 
 
-    See the COPYING file in the dsitribution for details.
+    See the COPYING file in the distribution for details.
 
 SEE ALSO
 
@@ -127,4 +146,5 @@ AUTHOR
 
     Eryq, eryq@rhine.gsfc.nasa.gov
     28 April 1996
+
 

@@ -9,11 +9,10 @@
 <!-- INDEX BEGIN -->
 <UL>
 	<LI><A HREF="#name">NAME</A>
-	<LI><A HREF="#alpharelease_warning">ALPHA-RELEASE WARNING</A>
 	<LI><A HREF="#description">DESCRIPTION</A>
 	<LI><A HREF="#synopsis">SYNOPSIS</A>
-	<LI><A HREF="#the_nitty_gritty">THE NITTY GRITTY</A>
 	<LI><A HREF="#public_interface">PUBLIC INTERFACE</A>
+	<LI><A HREF="#under_the_hood">UNDER THE HOOD</A>
 	<LI><A HREF="#questionable_practices">QUESTIONABLE PRACTICES</A>
 	<LI><A HREF="#see_also">SEE ALSO</A>
 	<LI><A HREF="#author">AUTHOR</A>
@@ -29,10 +28,7 @@ MIME::Parser - split MIME mail into decoded components
 
 <P>
 
-<P>
-<HR>
-<H1><A NAME="alpharelease_warning">ALPHA-RELEASE WARNING</A></H1>
-<EM><STRONG>This code is in an evaluation phase until 1 August 1996.</STRONG>
+<EM><STRONG>WARNING: This code is in an evaluation phase until 1 August 1996.</STRONG>
 
 Depending on any comments/complaints received before this cutoff date, 
 the interface <STRONG>may</STRONG>
@@ -72,144 +68,6 @@ MIME::Entity objects.
     # Congratulations: you now have a (possibly multipart) MIME entity!
     $entity-&gt;dump_skeleton;          # for debugging 
 </PRE>
-
-<P>
-
-<P>
-<HR>
-<H1><A NAME="the_nitty_gritty">THE NITTY GRITTY</A></H1>
-RFC-1521 gives us the following BNF grammer for the body of a multipart
-MIME message:
-
-
-<P>
-
-<PRE>
-      multipart-body  := preamble 1*encapsulation close-delimiter epilogue
-</PRE>
-
-<P>
-
-<PRE>
-      encapsulation   := delimiter body-part CRLF
-</PRE>
-
-<P>
-
-<PRE>
-      delimiter       := &quot;--&quot; boundary CRLF 
-                                   ; taken from Content-Type field.
-                                   ; There must be no space between &quot;--&quot; 
-                                   ; and boundary.
-</PRE>
-
-<P>
-
-<PRE>
-      close-delimiter := &quot;--&quot; boundary &quot;--&quot; CRLF 
-                                   ; Again, no space by &quot;--&quot;
-</PRE>
-
-<P>
-
-<PRE>
-      preamble        := discard-text   
-                                   ; to be ignored upon receipt.
-</PRE>
-
-<P>
-
-<PRE>
-      epilogue        := discard-text   
-                                   ; to be ignored upon receipt.
-</PRE>
-
-<P>
-
-<PRE>
-      discard-text    := *(*text CRLF)
-</PRE>
-
-<P>
-
-<PRE>
-      body-part       := &lt;&quot;message&quot; as defined in RFC 822, with all 
-                          header fields optional, and with the specified 
-                          delimiter not occurring anywhere in the message 
-                          body, either on a line by itself or as a substring 
-                          anywhere.  Note that the semantics of a part 
-                          differ from the semantics of a message, as 
-                          described in the text.&gt;
-</PRE>
-
-<P>
-
-From this we glean the following algorithm for parsing a MIME stream:
-
-
-<P>
-
-<PRE>
-    PROCEDURE parse
-    INPUT
-        A FILEHANDLE for the stream.
-        An optional end-of-stream OUTER_BOUND (for a nested multipart message).
-    
-    RETURNS
-        The (possibly-multipart) ENTITY that was parsed.
-        A STATE indicating how we left things: &quot;END&quot; or &quot;ERROR&quot;.
-    
-    BEGIN   
-        LET OUTER_DELIM = &quot;--OUTER_BOUND&quot;.
-        LET OUTER_CLOSE = &quot;--OUTER_BOUND--&quot;.
-    
-        LET ENTITY = a new MIME entity object.
-        LET STATE  = &quot;OK&quot;.
-    
-        Parse the (possibly empty) header, up to and including the
-        blank line that terminates it.   Store it in the ENTITY.
-    
-        IF the MIME type is &quot;multipart&quot;:
-            LET INNER_BOUND = get multipart &quot;boundary&quot; from header.
-            LET INNER_DELIM = &quot;--INNER_BOUND&quot;.
-            LET INNER_CLOSE = &quot;--INNER_BOUND--&quot;.
-    
-            Parse preamble:
-                REPEAT:
-                    Read (and discard) next line
-                UNTIL (line is INNER_DELIM) OR we hit EOF (error).
-    
-            Parse parts:
-                REPEAT:
-                    LET (PART, STATE) = parse(FILEHANDLE, INNER_BOUND).
-                    Add PART to ENTITY.
-                UNTIL (STATE != &quot;DELIM&quot;).
-    
-            Parse epilogue:
-                REPEAT (to parse epilogue): 
-                    Read (and discard) next line
-                UNTIL (line is OUTER_DELIM or OUTER_CLOSE) OR we hit EOF
-                LET STATE = &quot;EOF&quot;, &quot;DELIM&quot;, or &quot;CLOSE&quot; accordingly.
-     
-        ELSE (if the MIME type is not &quot;multipart&quot;):
-            Open output destination (e.g., a file)
-    
-            DO:
-                Read, decode, and output data from FILEHANDLE
-            UNTIL (line is OUTER_DELIM or OUTER_CLOSE) OR we hit EOF.
-            LET STATE = &quot;EOF&quot;, &quot;DELIM&quot;, or &quot;CLOSE&quot; accordingly.
-    
-        ENDIF
-    
-        RETURN (ENTITY, STATE).
-    END
-</PRE>
-
-<P>
-
-For reasons discussed in MIME::Entity, we can't just discard the ``discard
-text'': some mailers actually put data in the preamble.
-
 
 <P>
 
@@ -412,6 +270,144 @@ arbitrarily-nested multipart entity. Returns undef on failure.
 </DL>
 <P>
 <HR>
+<H1><A NAME="under_the_hood">UNDER THE HOOD</A></H1>
+RFC-1521 gives us the following BNF grammar for the body of a multipart
+MIME message:
+
+
+<P>
+
+<PRE>
+      multipart-body  := preamble 1*encapsulation close-delimiter epilogue
+</PRE>
+
+<P>
+
+<PRE>
+      encapsulation   := delimiter body-part CRLF
+</PRE>
+
+<P>
+
+<PRE>
+      delimiter       := &quot;--&quot; boundary CRLF 
+                                   ; taken from Content-Type field.
+                                   ; There must be no space between &quot;--&quot; 
+                                   ; and boundary.
+</PRE>
+
+<P>
+
+<PRE>
+      close-delimiter := &quot;--&quot; boundary &quot;--&quot; CRLF 
+                                   ; Again, no space by &quot;--&quot;
+</PRE>
+
+<P>
+
+<PRE>
+      preamble        := discard-text   
+                                   ; to be ignored upon receipt.
+</PRE>
+
+<P>
+
+<PRE>
+      epilogue        := discard-text   
+                                   ; to be ignored upon receipt.
+</PRE>
+
+<P>
+
+<PRE>
+      discard-text    := *(*text CRLF)
+</PRE>
+
+<P>
+
+<PRE>
+      body-part       := &lt;&quot;message&quot; as defined in RFC 822, with all 
+                          header fields optional, and with the specified 
+                          delimiter not occurring anywhere in the message 
+                          body, either on a line by itself or as a substring 
+                          anywhere.  Note that the semantics of a part 
+                          differ from the semantics of a message, as 
+                          described in the text.&gt;
+</PRE>
+
+<P>
+
+From this we glean the following algorithm for parsing a MIME stream:
+
+
+<P>
+
+<PRE>
+    PROCEDURE parse
+    INPUT
+        A FILEHANDLE for the stream.
+        An optional end-of-stream OUTER_BOUND (for a nested multipart message).
+    
+    RETURNS
+        The (possibly-multipart) ENTITY that was parsed.
+        A STATE indicating how we left things: &quot;END&quot; or &quot;ERROR&quot;.
+    
+    BEGIN   
+        LET OUTER_DELIM = &quot;--OUTER_BOUND&quot;.
+        LET OUTER_CLOSE = &quot;--OUTER_BOUND--&quot;.
+    
+        LET ENTITY = a new MIME entity object.
+        LET STATE  = &quot;OK&quot;.
+    
+        Parse the (possibly empty) header, up to and including the
+        blank line that terminates it.   Store it in the ENTITY.
+    
+        IF the MIME type is &quot;multipart&quot;:
+            LET INNER_BOUND = get multipart &quot;boundary&quot; from header.
+            LET INNER_DELIM = &quot;--INNER_BOUND&quot;.
+            LET INNER_CLOSE = &quot;--INNER_BOUND--&quot;.
+    
+            Parse preamble:
+                REPEAT:
+                    Read (and discard) next line
+                UNTIL (line is INNER_DELIM) OR we hit EOF (error).
+    
+            Parse parts:
+                REPEAT:
+                    LET (PART, STATE) = parse(FILEHANDLE, INNER_BOUND).
+                    Add PART to ENTITY.
+                UNTIL (STATE != &quot;DELIM&quot;).
+    
+            Parse epilogue:
+                REPEAT (to parse epilogue): 
+                    Read (and discard) next line
+                UNTIL (line is OUTER_DELIM or OUTER_CLOSE) OR we hit EOF
+                LET STATE = &quot;EOF&quot;, &quot;DELIM&quot;, or &quot;CLOSE&quot; accordingly.
+     
+        ELSE (if the MIME type is not &quot;multipart&quot;):
+            Open output destination (e.g., a file)
+    
+            DO:
+                Read, decode, and output data from FILEHANDLE
+            UNTIL (line is OUTER_DELIM or OUTER_CLOSE) OR we hit EOF.
+            LET STATE = &quot;EOF&quot;, &quot;DELIM&quot;, or &quot;CLOSE&quot; accordingly.
+    
+        ENDIF
+    
+        RETURN (ENTITY, STATE).
+    END
+</PRE>
+
+<P>
+
+For reasons discussed in MIME::Entity, we can't just discard the ``discard
+text'': some mailers actually put data in the preamble.
+
+
+<P>
+
+<P>
+<HR>
 <H1><A NAME="questionable_practices">QUESTIONABLE PRACTICES</A></H1>
 <DL>
 <DT><STRONG><A NAME="item_multipart_messages_are_always_re">Multipart messages are always read line-by-line 
@@ -509,7 +505,7 @@ and/or modify it under the same terms as Perl itself.
 <P>
 <HR>
 <H1><A NAME="version">VERSION</A></H1>
-$Revision: 1.8 $ $Date: 1996/06/06 23:42:39 $
+$Revision: 1.10 $ $Date: 1996/06/24 19:02:31 $
 
 
 <P>

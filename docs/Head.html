@@ -9,19 +9,21 @@
 <!-- INDEX BEGIN -->
 <UL>
 	<LI><A HREF="#name">NAME</A>
-	<LI><A HREF="#alpharelease_warning">ALPHA-RELEASE WARNING</A>
 	<LI><A HREF="#description">DESCRIPTION</A>
 	<LI><A HREF="#synopsis">SYNOPSIS</A>
-	<LI><A HREF="#compatibility_tweaks">COMPATIBILITY TWEAKS</A>
 	<LI><A HREF="#public_interface">PUBLIC INTERFACE</A>
 	<UL>
 		<LI><A HREF="#creation_input_and_output">Creation, input, and output</A>
 		<LI><A HREF="#gettingsetting_fields">Getting/setting fields</A>
-		<LI><A HREF="#mimespecific_stuff">MIME-specific stuff</A>
+		<LI><A HREF="#mimespecific_methods">MIME-specific methods</A>
+		<LI><A HREF="#compatibility_tweaks">Compatibility tweaks</A>
 	</UL>
-	<LI><A HREF="#under_the_hood">UNDER THE HOOD</A>
+	<LI><A HREF="#design_issues">DESIGN ISSUES</A>
 	<UL>
-		<LI><A HREF="#implementation">Implementation</A>
+		<LI><A HREF="#why_have_separate_objects_for_th">Why have separate objects for the head and the entity?</A>
+		<LI><A HREF="#why_assume_that_mime_headers_are">Why assume that MIME headers are email headers?</A>
+		<LI><A HREF="#why_is_mimehead_so_complex_and_y">Why is MIME::Head so complex, and yet lacking in composition methods?</A>
+		<LI><A HREF="#why_all_this_occurence_jazz_isnt">Why all this "occurence" jazz?  Isn't every field unique?</A>
 	</UL>
 	<LI><A HREF="#see_also">SEE ALSO</A>
 	<LI><A HREF="#author">AUTHOR</A>
@@ -37,10 +39,7 @@ MIME::Head - MIME message header
 
 <P>
 
-<P>
-<HR>
-<H1><A NAME="alpharelease_warning">ALPHA-RELEASE WARNING</A></H1>
-<EM><STRONG>This code is in an evaluation phase until 1 August 1996.</STRONG>
+<EM><STRONG>WARNING: This code is in an evaluation phase until 1 August 1996.</STRONG>
 
 Depending on any comments/complaints received before this cutoff date, 
 the interface <STRONG>may</STRONG>
@@ -171,41 +170,18 @@ To get certain commonly-used MIME information:
 <P>
 
 <PRE>
-    $mime_type = $head-&gt;mime_type;
+    # The content type (e.g., &quot;text/html&quot;):
+    $mime_type     = $head-&gt;mime_type;
     
+    # The content transfer encoding (e.g., &quot;quoted-printable&quot;):
     $mime_encoding = $head-&gt;mime_encoding;
     
-    $file_name = $head-&gt;recommended_filename;
+    # The recommended filename (e.g., &quot;choosy-moms-choose.gif&quot;):
+    $file_name     = $head-&gt;recommended_filename;
     
-    $boundary = $head-&gt;multipart_boundary;
+    # The boundary text, for multipart messages:
+    $boundary      = $head-&gt;multipart_boundary;
 </PRE>
-
-<P>
-
-<P>
-<HR>
-<H1><A NAME="compatibility_tweaks">COMPATIBILITY TWEAKS</A></H1>
-The parser may be tweaked so that any line in the header stream that begins
-with <CODE>"From "</CODE> will be either <STRONG>ignored</STRONG>
-, flagged as an 
-<STRONG>error</STRONG>
-, or <STRONG>coerced</STRONG>
- into the special field <CODE>"Mail-from:"</CODE> 
-(the default; this approach was inspired by Emacs's ``Babyl'' format).
-Though not valid for a MIME header, this will provide compatibility with
-some Unix mail messages. Just do this:
-
-
-<P>
-
-<PRE>
-    MIME::Head-&gt;tweak_FROM_parsing($choice)
-</PRE>
-
-<P>
-
-Where <CODE>$choice</CODE> is one of <CODE>IGNORE</CODE>, <CODE>ERROR</CODE>, or <CODE>COERCE</CODE>.
-
 
 <P>
 
@@ -268,6 +244,29 @@ This is really just a convenience front-end onto <CODE>read()</CODE>.
 
 <P>
 
+<DT><STRONG><A NAME="item_print_filehandle">print FILEHANDLE
+
+</A></STRONG><DD>
+Output to the given FILEHANDLE, or to the currently-selected filehandle if
+none was given:
+
+
+<P>
+
+<PRE>
+    # Output to STDOUT:
+    $head-&gt;print(\*STDOUT);
+</PRE>
+
+<P>
+
+<STRONG>WARNING:</STRONG>
+ this method does not output the blank line that terminates the header in a
+legal message (since you may not always want it).
+
+
+<P>
+
 <DT><STRONG><A NAME="item_read_filehandle">read FILEHANDLE
 
 </A></STRONG><DD>
@@ -305,31 +304,8 @@ an instance initializer, the above is exactly equivalent to:
 
 <P>
 
-Except that you should probably use th first form. On success, the object
+Except that you should probably use the first form. On success, the object
 will be returned; on failure, the undefined value.
-
-
-<P>
-
-<DT><STRONG><A NAME="item_print_filehandle">print FILEHANDLE
-
-</A></STRONG><DD>
-Output to the given FILEHANDLE, or to the currently-selected filehandle if
-none was given:
-
-
-<P>
-
-<PRE>
-    # Output to STDOUT:
-    $head-&gt;print(\*STDOUT);
-</PRE>
-
-<P>
-
-<STRONG>WARNING:</STRONG>
- this method does not output the blank line that terminates the header in a
-legal message (since you may not always want it).
 
 
 <P>
@@ -342,11 +318,6 @@ legal message (since you may not always want it).
  this interface is not as extensive as that of MIME::Internet; however, I
 have provided a set of methods that I can guarantee are supportable across
 any changes to the internal implementation of this class.
-
-
-<P>
-
-Anything that you can't do here, you'll have to do 
 
 
 <P>
@@ -632,7 +603,7 @@ Currently, returns 1 always.
 </DL>
 <P>
 <HR>
-<H2><A NAME="mimespecific_stuff">MIME-specific stuff</A></H2>
+<H2><A NAME="mimespecific_methods">MIME-specific methods</A></H2>
 All of the following methods extract information from the following
 structured fields:
 
@@ -816,16 +787,243 @@ Returns undef if no filename could be suggested.
 </DL>
 <P>
 <HR>
-<H1><A NAME="under_the_hood">UNDER THE HOOD</A></H1>
-See the documentation under MIME::Entity for the rationale behind my
-additions to the MIME family.
+<H2><A NAME="compatibility_tweaks">Compatibility tweaks</A></H2>
+<DL>
+<DT><STRONG><A NAME="item_tweak_from_parsing_choice">tweak_FROM_parsing CHOICE
+
+</A></STRONG><DD>
+<EM>Class method.</EM>
+
+The parser may be tweaked so that any line in the header stream that begins
+with <CODE>"From "</CODE> will be either <STRONG>ignored</STRONG>
+, flagged as an 
+<STRONG>error</STRONG>
+, or <STRONG>coerced</STRONG>
+ into the special field <CODE>"Mail-from:"</CODE> 
+(the default; this approach was inspired by Emacs's ``Babyl'' format).
+Though not valid for a MIME header, this will provide compatibility with
+some Unix mail messages. Just do this:
+
+
+<P>
+
+<PRE>
+    MIME::Head-&gt;tweak_FROM_parsing($choice)
+</PRE>
+
+<P>
+
+Where <CODE>$choice</CODE> is one of <CODE>'IGNORE'</CODE>, <CODE>'ERROR'</CODE>, or <CODE>'COERCE'</CODE>.
+
+
+<P>
+
+</DL>
+<P>
+<HR>
+<H1><A NAME="design_issues">DESIGN ISSUES</A></H1>
+<P>
+<HR>
+<H2><A NAME="why_have_separate_objects_for_th">Why have separate objects for the head and the entity?</A></H2>
+See the documentation under MIME::Entity for the rationale behind this
+decision.
 
 
 <P>
 
 <P>
 <HR>
-<H2><A NAME="implementation">Implementation</A></H2>
+<H2><A NAME="why_assume_that_mime_headers_are">Why assume that MIME headers are email headers?</A></H2>
+I quote from Achim Bohnet, who gave feedback on v.1.9 (I think he's using
+the word <EM>header</EM>
+ where I would use <EM>field</EM>
+; e.g., to refer to ``Subject:'', ``Content-type:'', etc.):
+
+
+<P>
+
+<PRE>
+    There is also IMHO no requirement [for] MIME::Heads to look 
+    like [email] headers; so to speak, the MIME::Head [simply stores] 
+    the attributes of a complex object, e.g.:
+</PRE>
+
+<P>
+
+<PRE>
+        new MIME::Head type =&gt; &quot;text/plain&quot;,
+                       charset =&gt; ...,
+                       disposition =&gt; ..., ... ;
+</PRE>
+
+<P>
+
+See the next question for an answer to this one.  
+
+
+<P>
+
+<P>
+<HR>
+<H2><A NAME="why_is_mimehead_so_complex_and_y">Why is MIME::Head so complex, and yet lacking in composition methods?</A></H2>
+Sigh.
+
+
+<P>
+
+I have often wished that the original RFC-822 designers had taken a
+different approach, and not given every other field its own special
+grammar: read RFC-822 to see what I mean. As I understand it, in Heaven,
+all mail message headers have a very simple syntax that encodes
+arbitrarily-nested objects; a consistent, generic representation for
+exchanging OO data structures.
+
+
+<P>
+
+But we live in an imperfect world, where there's nonsense like this to put
+up with:
+
+
+<P>
+
+<PRE>
+    From: Yakko Warner &lt;yakko@tower.wb.com&gt;
+    Subject: Hello, nurse!
+    Received: from gsfc.nasa.gov by eryq.pr.mcs.net  with smtp
+        (Linux Smail3.1.28.1 #5) id m0tStZ7-0007X4C; Thu, 21 Dec 95 16:34 CST
+    Received: from rhine.gsfc.nasa.gov by gsfc.nasa.gov (5.65/Ultrix3.0-C)
+        id AA13596; Thu, 21 Dec 95 17:20:38 -0500
+    Content-type: text/html; charset=US-ASCII; 
+        name=&quot;nurse.html&quot;
+</PRE>
+
+<P>
+
+I quote from Achim Bohnet, who gave feedback on v.1.9 (I think he's using
+the word <EM>header</EM>
+ where I would use <EM>field</EM>
+; e.g., to refer to ``Subject:'', ``Content-type:'', etc.):
+
+
+<P>
+
+<PRE>
+    MIME::Head is too big. A better approach IMHO would be to 
+    have a general header class that knows about allowed characters, 
+    line length, and some (formatting) output routines.  There 
+    should be other classes that handle special headers and that 
+    are aware of the semantics/syntax of [those] headers...
+</PRE>
+
+<P>
+
+<PRE>
+        From, to, reply-to, message-id, in-reply-to, x-face ...
+</PRE>
+
+<P>
+
+<PRE>
+    MIME::Head should only handle MIME specific headers.  
+</PRE>
+
+<P>
+
+As he describes, each kind of field really merits its own small class (e.g,
+Mail::Field::Subject, Mail::Field::MessageId, Mail::Field::XFace, etc.),
+each of which provides a <CODE>from_field()</CODE> method for parsing field
+data <EM>into</EM>
+ a class object, and a <CODE>to_field()</CODE> method for generating that
+field <EM>from</EM>
+ a class object.
+
+
+<P>
+
+I kind of like the elegance of this approach. We could then have a generic
+Mail::Head class, instances of which would consist simply of one or more
+instances of subclasses of a generic Mail::Field class. Unrecognized fields
+would be represented as instances of Mail::Field by default.
+
+
+<P>
+
+There would be a MIME::Field class, with subclasses like
+MIME::Field::ContentType that would allow us to get fields like this:
+
+
+<P>
+
+<PRE>
+   $type    = $head-&gt;field('content-type')-&gt;type;
+   $subtype = $head-&gt;field('content-type')-&gt;subtype;
+   $charset = $head-&gt;field('content-type')-&gt;charset;
+</PRE>
+
+<P>
+
+And set fields like this:
+
+
+<P>
+
+<PRE>
+   $head-&gt;field('content-type')-&gt;type('text');
+   $head-&gt;field('content-type')-&gt;subtype('html');
+   $head-&gt;field('content-type')-&gt;charset('us-ascii');
+</PRE>
+
+<P>
+
+And, with that same MIME::Head object, get at other fields, like:
+
+
+<P>
+
+<PRE>
+   $subject     = $head-&gt;field('subject')-&gt;text;  # just the flat text
+   $sender_name = $head-&gt;field('from')-&gt;name;     # e.g., Yakko Warner
+   $sender_addr = $head-&gt;field('from')-&gt;addr;     # e.g., yakko@tower.wb.com
+</PRE>
+
+<P>
+
+So why a special MIME::Head subclass of Mail::Head? Why, to enable us to
+add MIME-specific wrappers, like this:
+
+
+<P>
+
+<PRE>
+   package MIME::Head;
+   @ISA = qw(Mail::Head);
+   
+   sub recommended_filename {
+       my $self = shift;
+       my $try;
+       
+       # First, try to get it from the content-disposition:
+       ($try = $self-&gt;field('content-disposition')-&gt;filename) and return $try;
+       
+       # Next, try to get it from the content-type:
+       ($try = $self-&gt;field('content-type')-&gt;name) and return $try;
+       
+       # Give up:
+       undef;
+   }
+</PRE>
+
+<P>
+
+<P>
+<HR>
+<H2><A NAME="why_all_this_occurence_jazz_isnt">Why all this "occurence" jazz?  Isn't every field unique?</A></H2>
+Aaaaaaaaaahh....no.
+
+
+<P>
+
 Looking at a typical mail message header, it is sooooooo tempting to just
 store the fields as a hash of strings, one string per hash entry.
 Unfortunately, there's the little matter of the <CODE>Received:</CODE> field, which (unlike <CODE>From:</CODE>, <CODE>To:</CODE>, etc.) will often have multiple occurences; e.g.:
@@ -851,10 +1049,16 @@ Unfortunately, there's the little matter of the <CODE>Received:</CODE> field, wh
 
 The <CODE>Received:</CODE> field is used for tracing message routes, and although it's not generally
 used for anything other than human debugging, I didn't want to
-inconvenience anyone who actually wanted to get at that information. I <EM>also</EM>
- didn't want to make this a special case; after all, who knows what other
-fields could have multiple occurences in the future? So, clearly, multiple
-entries had to somehow be stored multiple times.
+inconvenience anyone who actually wanted to get at that information.  
+
+
+<P>
+
+I <EM>also</EM>
+ didn't want to make this a special case; after all, who knows what <STRONG>other</STRONG>
+ fields could have multiple occurences in the future? So, clearly, multiple
+entries had to somehow be stored multiple times... and the different
+occurences had to be retrievable.
 
 
 <P>
@@ -882,8 +1086,8 @@ and/or modify it under the same terms as Perl itself.
 
 <P>
 
-More-comprehensive filename extraction by Lee E. Brotzman, Advanced Data
-Solutions.
+The more-comprehensive filename extraction is courtesy of Lee E. Brotzman,
+Advanced Data Solutions.
 
 
 <P>
@@ -891,7 +1095,7 @@ Solutions.
 <P>
 <HR>
 <H1><A NAME="version">VERSION</A></H1>
-$Revision: 1.9 $ $Date: 1996/06/06 23:27:02 $
+$Revision: 1.16 $ $Date: 1996/06/19 04:04:35 $
 
 
 <P>

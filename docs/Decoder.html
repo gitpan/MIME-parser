@@ -9,10 +9,8 @@
 <!-- INDEX BEGIN -->
 <UL>
 	<LI><A HREF="#name">NAME</A>
-	<LI><A HREF="#alpharelease_warning">ALPHA-RELEASE WARNING</A>
 	<LI><A HREF="#description">DESCRIPTION</A>
 	<LI><A HREF="#synopsis">SYNOPSIS</A>
-	<LI><A HREF="#writing_a_decoder">WRITING A DECODER</A>
 	<LI><A HREF="#public_interface">PUBLIC INTERFACE</A>
 	<LI><A HREF="#subclass_interface">SUBCLASS INTERFACE</A>
 	<LI><A HREF="#private_builtin_decoders">PRIVATE BUILT-IN DECODERS</A>
@@ -22,6 +20,7 @@
 		<LI><A HREF="#mimedecoderquotedprint">MIME::Decoder::QuotedPrint</A>
 		<LI><A HREF="#mimedecoderxbit">MIME::Decoder::Xbit</A>
 	</UL>
+	<LI><A HREF="#writing_a_decoder">WRITING A DECODER</A>
 	<LI><A HREF="#see_also">SEE ALSO</A>
 	<LI><A HREF="#author">AUTHOR</A>
 	<LI><A HREF="#version">VERSION</A>
@@ -36,10 +35,7 @@ MIME::Decoder - an object for decoding the body part of a MIME stream
 
 <P>
 
-<P>
-<HR>
-<H1><A NAME="alpharelease_warning">ALPHA-RELEASE WARNING</A></H1>
-<EM><STRONG>This code is in an evaluation phase until 1 August 1996.</STRONG>
+<EM><STRONG>WARNING: This code is in an evaluation phase until 1 August 1996.</STRONG>
 
 Depending on any comments/complaints received before this cutoff date, 
 the interface <STRONG>may</STRONG>
@@ -73,7 +69,7 @@ MIME::Decoder will know about them, via the <CODE>install()</CODE> method
 
 <P>
 
-Want to know if a given encoding is currently supported? Use the <CODE>supported()</CODE> class methed.
+Want to know if a given encoding is currently supported? Use the <CODE>supported()</CODE> class method.
 
 
 <P>
@@ -105,131 +101,6 @@ write the decoded data to STDOUT:
 
 The <CODE>decode()</CODE> method will always eat up all input to the end of
 file.
-
-
-<P>
-
-<P>
-<HR>
-<H1><A NAME="writing_a_decoder">WRITING A DECODER</A></H1>
-If you're experimenting with your own encodings, you'll probably want to
-write a decoder. Here are the basics:
-
-
-<P>
-
-<OL>
-<LI><STRONG><A NAME="item_">
-
-
-
-</A></STRONG>
-Create a module, like ``MyDecoder::'', for your decoder. Declare it to be a
-subclass of MIME::Decoder.
-
-
-<P>
-
-<LI><STRONG><A NAME="item_">
-
-
-
-</A></STRONG>
-Create the instance method <CODE>MyDecoder::decode_it()</CODE>, as follows:
-
-
-<P>
-
-Your method should take as arguments the <CODE>$self</CODE> object (natch), a filehandle opened for input, called <CODE>$in</CODE>, and a filehandle opened for output, called <CODE>$out</CODE>.
-
-
-<P>
-
-Your method should read from the input filehandle, decode this input, and
-print its decoded output to the <CODE>$out</CODE> filehandle. You may do this however you see fit, so long as the end result
-is the same.
-
-
-<P>
-
-Your method must return either <CODE>undef</CODE> (to indicate failure), or <CODE>1</CODE> (to indicate success).
-
-
-<P>
-
-<LI><STRONG><A NAME="item_">
-
-
-
-</A></STRONG>
-In your application program, activate your decoder for one or more
-encodings like this:
-
-
-<P>
-
-<PRE>
-    require MyDecoder;
-</PRE>
-
-<P>
-
-<PRE>
-    install MyDecoder &quot;7bit&quot;;        # use MyDecoder to decode &quot;7bit&quot;    
-    install MyDecoder &quot;x-foo&quot;;       # also, use MyDecoder to decode &quot;x-foo&quot;
-</PRE>
-
-<P>
-
-</OL>
-To illustrate, here's a custom decoder class for the <CODE>base64</CODE> encoding:
-
-
-<P>
-
-<PRE>
-    package MyBase64Decoder;
-</PRE>
-
-<P>
-
-<PRE>
-    @ISA = qw(MIME::Decoder);    
-    use MIME::Decoder;
-    use MIME::Base64;
-    
-    # decode_it - the private decoding method
-    sub decode_it {
-        my ($self, $in, $out) = @_;
-</PRE>
-
-<P>
-
-<PRE>
-        while (&lt;$in&gt;) {
-            my $decoded = decode_base64($_);
-	    print $out $decoded;
-        }
-        1;
-    }
-</PRE>
-
-<P>
-
-That's it.
-
-
-<P>
-
-The task was pretty simple because the <CODE>"base64"</CODE> encoding can easily and efficiently be parsed line-by-line... as can <CODE>"quoted-printable"</CODE>, and even <CODE>"7bit"</CODE> and <CODE>"8bit"</CODE> (since all these encodings guarantee short lines, with a max of 1000
-characters). The good news is: it is very likely that it will be
-similarly-easy to write a MIME::Decoder for any future standard encodings.
-
-
-<P>
-
-The <CODE>"binary"</CODE> decoder, however, really required block reads and writes: see <A HREF="#mimedecoderbinary">MIME/Decoder::Binary</A>
- for details.
 
 
 <P>
@@ -422,6 +293,131 @@ the data unchanged <EM>except</EM>
 
 <P>
 <HR>
+<H1><A NAME="writing_a_decoder">WRITING A DECODER</A></H1>
+If you're experimenting with your own encodings, you'll probably want to
+write a decoder. Here are the basics:
+
+
+<P>
+
+<OL>
+<LI><STRONG><A NAME="item_">
+
+
+
+</A></STRONG>
+Create a module, like ``MyDecoder::'', for your decoder. Declare it to be a
+subclass of MIME::Decoder.
+
+
+<P>
+
+<LI><STRONG><A NAME="item_">
+
+
+
+</A></STRONG>
+Create the instance method <CODE>MyDecoder::decode_it()</CODE>, as follows:
+
+
+<P>
+
+Your method should take as arguments the <CODE>$self</CODE> object (natch), a filehandle opened for input, called <CODE>$in</CODE>, and a filehandle opened for output, called <CODE>$out</CODE>.
+
+
+<P>
+
+Your method should read from the input filehandle, decode this input, and
+print its decoded output to the <CODE>$out</CODE> filehandle. You may do this however you see fit, so long as the end result
+is the same.
+
+
+<P>
+
+Your method must return either <CODE>undef</CODE> (to indicate failure), or <CODE>1</CODE> (to indicate success).
+
+
+<P>
+
+<LI><STRONG><A NAME="item_">
+
+
+
+</A></STRONG>
+In your application program, activate your decoder for one or more
+encodings like this:
+
+
+<P>
+
+<PRE>
+    require MyDecoder;
+</PRE>
+
+<P>
+
+<PRE>
+    install MyDecoder &quot;7bit&quot;;        # use MyDecoder to decode &quot;7bit&quot;    
+    install MyDecoder &quot;x-foo&quot;;       # also, use MyDecoder to decode &quot;x-foo&quot;
+</PRE>
+
+<P>
+
+</OL>
+To illustrate, here's a custom decoder class for the <CODE>base64</CODE> encoding:
+
+
+<P>
+
+<PRE>
+    package MyBase64Decoder;
+</PRE>
+
+<P>
+
+<PRE>
+    @ISA = qw(MIME::Decoder);    
+    use MIME::Decoder;
+    use MIME::Base64;
+    
+    # decode_it - the private decoding method
+    sub decode_it {
+        my ($self, $in, $out) = @_;
+</PRE>
+
+<P>
+
+<PRE>
+        while (&lt;$in&gt;) {
+            my $decoded = decode_base64($_);
+	    print $out $decoded;
+        }
+        1;
+    }
+</PRE>
+
+<P>
+
+That's it.
+
+
+<P>
+
+The task was pretty simple because the <CODE>"base64"</CODE> encoding can easily and efficiently be parsed line-by-line... as can <CODE>"quoted-printable"</CODE>, and even <CODE>"7bit"</CODE> and <CODE>"8bit"</CODE> (since all these encodings guarantee short lines, with a max of 1000
+characters). The good news is: it is very likely that it will be
+similarly-easy to write a MIME::Decoder for any future standard encodings.
+
+
+<P>
+
+The <CODE>"binary"</CODE> decoder, however, really required block reads and writes: see <A HREF="#mimedecoderbinary">MIME/Decoder::Binary</A>
+ for details.
+
+
+<P>
+
+<P>
+<HR>
 <H1><A NAME="see_also">SEE ALSO</A></H1>
 MIME::Decoder, MIME::Entity, MIME::Head, MIME::Parser.
 
@@ -446,7 +442,7 @@ and/or modify it under the same terms as Perl itself.
 <P>
 <HR>
 <H1><A NAME="version">VERSION</A></H1>
-$Revision: 1.7 $ $Date: 1996/06/06 23:30:38 $
+$Revision: 1.9 $ $Date: 1996/06/24 19:02:31 $
 
 
 <P>
